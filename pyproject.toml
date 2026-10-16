@@ -1,0 +1,59 @@
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+src = ["app", "tools", "orchestrator", "router", "tests", "eval"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+    "S",   # flake8-bandit (security)
+    "T20", # flake8-print
+    "N",   # pep8-naming
+]
+ignore = [
+    "E501",  # line length
+    "S101",  # assert used — allowed in tests
+    "S105",  # possible hardcoded password (matches 'token_type="bearer"')
+    "S603",  # subprocess calls — we have explicit allowed locations
+    "B008",  # do not perform function calls in default arguments (FastAPI Depends pattern)
+    "B904",  # within an except clause, raise exceptions with raise ... from
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S", "T20"]      # allow asserts and prints in tests
+"scripts/*" = ["T20"]         # allow print in scripts
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true
+warn_return_any = true
+warn_unused_configs = true
+exclude = ["alembic/", "tests/", "scripts/"]
+
+[[tool.mypy.overrides]]
+module = ["langgraph.*", "ollama.*", "psycopg.*", "pgvector.*", "slowapi.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "--tb=short -q"
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["tests/*", "alembic/*", "scripts/*"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 70

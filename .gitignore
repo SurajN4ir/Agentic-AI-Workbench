@@ -1,0 +1,93 @@
+# ============================================================
+# Sovereign Workbench — .gitignore
+# ============================================================
+
+# --- Secrets & credentials (NEVER commit these) ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+secrets/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+*.whl
+
+# --- Virtual environments ---
+.venv/
+venv/
+env/
+ENV/
+
+# --- ML model artefacts (train from script, never commit binaries) ---
+*.pkl
+*.pickle
+*.joblib
+*.bin
+*.gguf
+*.ggml
+*.safetensors
+
+# --- Local data & workspaces ---
+workspace/
+data/
+uploads/
+reference_files/
+chroma_db/
+logs/
+*.log
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# --- TLS / certificate directories ---
+certs/
+ssl/
+
+# --- Node / frontend ---
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+*.tsbuildinfo
+dist/
+.cache/
+
+# --- IDE & OS ---
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# --- Test & coverage ---
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# --- Docker ---
+docker-compose.override.yml
+
+# --- Alembic ---
+# Keep migrations tracked; exclude only auto-generated tmp
+alembic/versions/__pycache__/

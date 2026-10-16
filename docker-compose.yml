@@ -1,0 +1,122 @@
+services:
+  # ─── PostgreSQL with pgvector ───────────────────────────────
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: sovereign_postgres
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"   # localhost only — not exposed on all interfaces
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-sovereign_workbench}
+      POSTGRES_USER: ${POSTGRES_USER:-sovereign}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}      # REQUIRED — no default; fails if unset
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sovereign} -d ${POSTGRES_DB:-sovereign_workbench}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "2.0"
+
+  # ─── Ollama (local inference) ────────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: sovereign_ollama
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${OLLAMA_PORT:-11434}:11434"   # localhost only
+    volumes:
+      - ollama_models:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:11434/api/tags || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 8G     # adjust based on model size; 7B Q4 needs ~5 GB
+          cpus: "4.0"
+    # AMD GPU acceleration (optional — uncomment if ROCm is installed):
+    # devices:
+    #   - /dev/kfd:/dev/kfd
+    #   - /dev/dri:/dev/dri
+    # group_add:
+    #   - video
+    # environment:
+    #   - OLLAMA_ROCM=1
+
+  # ─── Backend API ─────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: sovereign_backend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${BACKEND_PORT:-8000}:8000"    # localhost only
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-sovereign_workbench}
+      POSTGRES_USER: ${POSTGRES_USER:-sovereign}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}            # REQUIRED
+      JWT_ACCESS_TOKEN_EXPIRE_SECONDS: ${JWT_ACCESS_TOKEN_EXPIRE_SECONDS:-28800}
+      JWT_REFRESH_TOKEN_EXPIRE_SECONDS: ${JWT_REFRESH_TOKEN_EXPIRE_SECONDS:-604800}
+      OLLAMA_BASE_URL: http://ollama:11434
+      STRICT_OFFLINE: ${STRICT_OFFLINE:-false}
+      MAX_UPLOAD_SIZE_BYTES: ${MAX_UPLOAD_SIZE_BYTES:-52428800}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+      DEBUG: ${DEBUG:-false}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    volumes:
+      - backend_workspace:/app/workspace
+      - backend_uploads:/app/uploads
+      - backend_artifacts:/app/artifacts
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "2.0"
+
+  # ─── Frontend ────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.frontend
+    container_name: sovereign_frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-3000}:80"     # localhost only
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+    driver: local
+  ollama_models:
+    driver: local
+  backend_workspace:
+    driver: local
+  backend_uploads:
+    driver: local
+  backend_artifacts:
+    driver: local
+
+networks:
+  default:
+    driver: bridge
+    internal: false   # set to true in strict air-gapped deployment to block all external network
