@@ -1,0 +1,49 @@
+"""
+app/models/schemas.py
+=====================
+Pydantic schemas for model interfaces, generation options, and responses.
+"""
+
+from typing import Any, Literal
+
+from pydantic import BaseModel, Field
+
+ModelRole = Literal["reasoning", "coding", "vision", "ocr", "vision_ocr", "embedding", "auto"]
+
+
+class ModelConfig(BaseModel):
+    tag: str = Field(..., description="Ollama model tag or identifier")
+    label: str = Field(..., description="Display label for the model")
+    context_window: int = Field(default=8192, description="Maximum context window in tokens")
+    supports_thinking: bool = Field(default=False, description="Whether model outputs thinking/reasoning traces")
+
+
+class ModelOption(BaseModel):
+    id: str
+    role: str
+    label: str
+    desc: str
+
+
+class GenerateOptions(BaseModel):
+    temperature: float = Field(default=0.2, ge=0.0, le=2.0)
+    top_p: float = Field(default=0.9, ge=0.0, le=1.0)
+    max_tokens: int | None = Field(default=None, ge=1)
+    stop: list[str] | None = None
+    system_prompt: str | None = None
+    extra_params: dict[str, Any] = Field(default_factory=dict)
+
+
+class ModelResponse(BaseModel):
+    content: str = Field(..., description="Primary output text from the model")
+    thinking_content: str | None = Field(default=None, description="Extracted chain-of-thought if available")
+    model: str = Field(..., description="Actual model tag used for generation")
+    total_duration_ms: float | None = Field(default=None, description="Total execution duration in milliseconds")
+    prompt_eval_count: int | None = Field(default=None, description="Tokens evaluated in prompt")
+    eval_count: int | None = Field(default=None, description="Tokens generated in response")
+
+
+class EmbeddingResponse(BaseModel):
+    embeddings: list[list[float]] = Field(..., description="Vector embeddings for input texts")
+    model: str = Field(..., description="Embedding model tag used")
+    dimension: int = Field(..., description="Vector dimensionality")

@@ -1,0 +1,54 @@
+{
+  "models": {
+    "reasoning": {
+      "tag": "qwen2.5:3b",
+      "label": "Reasoning (Qwen 2.5 3B)",
+      "context_window": 8192,
+      "supports_thinking": true
+    },
+    "coding": {
+      "tag": "qwen2.5-coder:3b",
+      "label": "Coding (Qwen 2.5 Coder 3B)",
+      "context_window": 8192,
+      "supports_thinking": false
+    },
+    "vision": {
+      "tag": "qwen2.5-vl:3b",
+      "label": "Vision (Qwen 2.5 VL 3B)",
+      "context_window": 8192,
+      "supports_thinking": false
+    },
+    "ocr": {
+      "tag": "qwen2.5-vl:3b",
+      "label": "OCR VLM (Qwen 2.5 VL 3B)",
+      "context_window": 8192,
+      "supports_thinking": false
+    },
+    "embedding": {
+      "tag": "nomic-embed-text",
+      "label": "Embedding (Nomic Embed)",
+      "context_window": 2048,
+      "supports_thinking": false
+    }
+  },
+  "options": [
+    {
+      "id": "auto",
+      "role": "auto",
+      "label": "Auto (Router)",
+      "desc": "Dynamic 3-Stage Waterfall Routing"
+    },
+    {
+      "id": "reasoning",
+      "role": "reasoning",
+      "label": "Reasoning",
+      "desc": "Step-by-step reasoning, analytical synthesis & math"
+    },
+    {
+      "id": "coding",
+      "role": "coding",
+      "label": "Coding",
+      "desc": "Code generation, debugging & tool execution"
+    }
+  ]
+}
