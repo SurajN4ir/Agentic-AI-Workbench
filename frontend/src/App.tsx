@@ -1,34 +1,92 @@
 import React, { useEffect, useState } from 'react'
 import { api } from './api/client'
 import type { HealthStatus, User } from './types/auth'
-import { Shield, ShieldAlert, ShieldCheck, Server, User as UserIcon, Lock, LogOut } from 'lucide-react'
+import type { ArtifactInfo, KnowledgeDoc, RouteDecision, SearchResult, ToolResultItem } from './types/workbench'
+import {
+  Shield,
+  Server,
+  User as UserIcon,
+  LogOut,
+  Cpu,
+  Database,
+  Terminal,
+  FileText,
+  Search,
+  Upload,
+  Download,
+  Play,
+  RotateCw,
+  CheckCircle2,
+  XCircle,
+  Sparkles,
+  ChevronDown,
+  ChevronRight,
+} from 'lucide-react'
+
 
 export const App: React.FC = () => {
+  // Auth & System Health
   const [health, setHealth] = useState<HealthStatus | null>(null)
   const [ready, setReady] = useState<HealthStatus | null>(null)
   const [currentUser, setCurrentUser] = useState<User | null>(null)
-  const [username, setUsername] = useState('')
+  const [username, setUsername] = useState('admin')
   const [password, setPassword] = useState('')
   const [loginError, setLoginError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
+  // Active Tab: 'workbench' | 'knowledge' | 'sandbox'
+  const [activeTab, setActiveTab] = useState<'workbench' | 'knowledge' | 'sandbox'>('workbench')
+
+  // Workbench State
+  const [prompt, setPrompt] = useState('')
+  const [roleOverride, setRoleOverride] = useState<string>('auto')
+  const [agentRunning, setAgentRunning] = useState(false)
+  const [agentStatus, setAgentStatus] = useState<string | null>(null)
+  const [routeDecision, setRouteDecision] = useState<RouteDecision | null>(null)
+  const [thinkingSteps, setThinkingSteps] = useState<string[]>([])
+  const [showThinking, setShowThinking] = useState(true)
+  const [liveTools, setLiveTools] = useState<ToolResultItem[]>([])
+  const [agentResponse, setAgentResponse] = useState<string | null>(null)
+  const [sessionArtifacts, setSessionArtifacts] = useState<ArtifactInfo[]>([])
+  const [currentSessionId, setCurrentSessionId] = useState<string>('session_' + Math.random().toString(36).substring(2, 9))
+
+  // Knowledge Base State
+  const [documents, setDocuments] = useState<KnowledgeDoc[]>([])
+  const [uploadFile, setUploadFile] = useState<File | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([])
+  const [searching, setSearching] = useState(false)
+
+  // Math & Sandbox Quick Tester
+  const [mathExpr, setMathExpr] = useState('integrate(x**2 * sin(x), x)')
+  const [mathOperation, setMathOperation] = useState('integrate')
+  const [mathOutput, setMathOutput] = useState<string | null>(null)
+
   useEffect(() => {
     // Initial health checks
-    api.checkHealth()
-      .then(setHealth)
-      .catch(() => setHealth({ status: 'unreachable' }))
+    api.checkHealth().then(setHealth).catch(() => setHealth({ status: 'unreachable' }))
+    api.checkReady().then(setReady).catch(() => setReady({ status: 'not_ready', database: 'unreachable' }))
 
-    api.checkReady()
-      .then(setReady)
-      .catch(() => setReady({ status: 'not_ready', database: 'unreachable' }))
-
-    // If token exists, fetch profile
     if (api.getToken()) {
-      api.getMe()
-        .then(setCurrentUser)
-        .catch(() => api.setToken(null))
+      api.getMe().then(setCurrentUser).catch(() => api.setToken(null))
     }
   }, [])
+
+  useEffect(() => {
+    if (currentUser && activeTab === 'knowledge') {
+      loadDocuments()
+    }
+  }, [currentUser, activeTab])
+
+  const loadDocuments = async () => {
+    try {
+      const docs = await api.listDocuments()
+      setDocuments(docs)
+    } catch (err) {
+      console.error('Failed to load documents:', err)
+    }
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -44,11 +102,7 @@ export const App: React.FC = () => {
         setPassword('')
       }
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setLoginError(err.message)
-      } else {
-        setLoginError('Authentication failed')
-      }
+      setLoginError(err instanceof Error ? err.message : 'Authentication failed')
     } finally {
       setLoading(false)
     }
@@ -59,169 +113,705 @@ export const App: React.FC = () => {
     setCurrentUser(null)
   }
 
+  // --- Run Agent with SSE Streaming ---
+  const handleExecuteAgent = async () => {
+    if (!prompt.trim() || agentRunning) return
+
+    setAgentRunning(true)
+    setAgentStatus('Initiating Sovereign Agent loop...')
+    setRouteDecision(null)
+    setThinkingSteps([])
+    setLiveTools([])
+    setAgentResponse(null)
+    setSessionArtifacts([])
+
+    try {
+      await api.streamAgentTask(
+        prompt,
+        (event, data) => {
+          if (event === 'status') {
+            setAgentStatus(data.status)
+          } else if (event === 'route') {
+            setRouteDecision(data)
+            setAgentStatus(`Routed to ${data.role} via ${data.method} (${Math.round(data.confidence * 100)}%)`)
+          } else if (event === 'thinking') {
+            setThinkingSteps((prev) => [...prev, data.content])
+          } else if (event === 'tool_call') {
+            setAgentStatus(`Executing tool: ${data.name}...`)
+          } else if (event === 'tool_result') {
+            setLiveTools((prev) => [...prev, data])
+          } else if (event === 'done') {
+            setAgentResponse(data.response)
+            setAgentStatus(`Task finished (${data.status}) in ${data.duration_ms}ms`)
+          }
+        },
+        roleOverride === 'auto' ? undefined : roleOverride,
+        currentSessionId,
+      )
+
+      // Fetch artifacts generated during task
+      const arts = await api.listArtifacts(currentSessionId)
+      setSessionArtifacts(arts)
+    } catch (err) {
+      setAgentStatus(`Execution error: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      setAgentRunning(false)
+    }
+  }
+
+  // --- Document Ingestion ---
+  const handleUploadDocument = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!uploadFile) return
+
+    setUploading(true)
+    try {
+      await api.uploadDocument(uploadFile)
+      setUploadFile(null)
+      await loadDocuments()
+    } catch (err) {
+      alert(`Upload error: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  // --- Semantic Search ---
+  const handleSearchKnowledge = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!searchQuery.trim()) return
+
+    setSearching(true)
+    try {
+      const results = await api.searchKnowledge(searchQuery)
+      setSearchResults(results)
+    } catch (err) {
+      alert(`Search error: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      setSearching(false)
+    }
+  }
+
+  // --- Quick Math Tester ---
+  const handleRunMath = async () => {
+    setMathOutput('Evaluating expression symbolically...')
+    try {
+      const res = await fetch('/api/v1/tools/math', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${api.getToken()}`,
+        },
+        body: JSON.stringify({
+          expression: mathExpr,
+          operation: mathOperation,
+        }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setMathOutput(data.output || data.result_text || JSON.stringify(data.data, null, 2))
+      } else {
+        setMathOutput(`Error: ${data.detail || 'Evaluation failed'}`)
+      }
+    } catch (err) {
+      setMathOutput(`Error: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col font-sans">
-      {/* Top Header */}
-      <header className="border-b border-neutral-800 bg-neutral-950 px-6 py-4 flex items-center justify-between">
+    <div className="min-h-screen bg-black text-white flex flex-col font-sans selection:bg-neutral-800">
+      {/* Top Sovereign Navigation Header */}
+      <header className="border-b border-neutral-800 bg-neutral-950 px-6 py-3.5 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="h-9 w-9 rounded-lg bg-neutral-900 border border-neutral-700 flex items-center justify-center">
             <Shield className="h-5 w-5 text-white" />
           </div>
           <div>
-            <h1 className="text-base font-semibold tracking-tight text-white leading-tight">
+            <h1 className="text-base font-semibold tracking-tight text-white leading-tight flex items-center gap-2">
               Sovereign Workbench
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800 font-mono">
+                AIR-GAPPED
+              </span>
             </h1>
             <p className="text-xs text-neutral-400">
-              On-Premise Industrial AI &middot; Air-Gapped Foundation
+              Confidential Industrial AI Engine &middot; Local-First Monolith
             </p>
           </div>
         </div>
 
-        {/* System Health Indicators */}
-        <div className="flex items-center gap-4 text-xs font-mono">
+        {/* Health Monitors & Status */}
+        <div className="flex items-center gap-3 text-xs font-mono">
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-neutral-900 border border-neutral-800">
             <Server className="h-3.5 w-3.5 text-neutral-400" />
             <span className="text-neutral-400">API:</span>
             <span className={health?.status === 'ok' ? 'text-emerald-400' : 'text-amber-400'}>
-              {health?.status ?? 'checking...'}
+              {health?.status ?? '...'}
             </span>
           </div>
 
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-neutral-900 border border-neutral-800">
-            <span className="text-neutral-400">DB:</span>
+            <Database className="h-3.5 w-3.5 text-neutral-400" />
+            <span className="text-neutral-400">pgvector:</span>
             <span className={ready?.database === 'ok' ? 'text-emerald-400' : 'text-neutral-500'}>
               {ready?.database ?? 'standby'}
             </span>
           </div>
 
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-neutral-900 border border-neutral-800">
-            <ShieldCheck className="h-3.5 w-3.5 text-blue-400" />
-            <span className="text-neutral-300">Phase 1: Core</span>
+            <Cpu className="h-3.5 w-3.5 text-blue-400" />
+            <span className="text-neutral-400">Ollama:</span>
+            <span className="text-blue-400">Local (Loopback)</span>
           </div>
-        </div>
-      </header>
 
-      {/* Main Content Area */}
-      <main className="flex-1 max-w-4xl w-full mx-auto p-8 flex flex-col justify-center">
-        {currentUser ? (
-          /* Authenticated User View */
-          <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-8 space-y-6">
-            <div className="flex items-center justify-between border-b border-neutral-800 pb-5">
-              <div className="flex items-center gap-3">
-                <div className="h-12 w-12 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center font-bold text-lg">
-                  {currentUser.name.charAt(0)}
+          {currentUser ? (
+            <div className="flex items-center gap-3 pl-2 border-l border-neutral-800">
+              <div className="flex items-center gap-2">
+                <div className="h-6 w-6 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white uppercase">
+                  {currentUser.username[0]}
                 </div>
-                <div>
-                  <h2 className="text-lg font-semibold text-white">{currentUser.name}</h2>
-                  <p className="text-xs text-neutral-400 font-mono">
-                    @{currentUser.username} &middot; Role: <span className="text-emerald-400 uppercase font-bold">{currentUser.role}</span>
-                  </p>
+                <div className="flex flex-col">
+                  <span className="text-xs font-medium text-white">{currentUser.username}</span>
+                  <span className="text-[10px] text-neutral-400 uppercase font-mono">{currentUser.role}</span>
                 </div>
               </div>
               <button
                 onClick={handleLogout}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-xs font-medium text-neutral-300 transition"
+                className="p-1.5 rounded hover:bg-neutral-800 text-neutral-400 hover:text-white transition-colors"
+                title="Logout"
               >
-                <LogOut className="h-3.5 w-3.5" />
-                Logout
+                <LogOut className="h-4 w-4" />
               </button>
             </div>
+          ) : null}
+        </div>
+      </header>
 
-            <div className="grid grid-cols-2 gap-4 text-xs">
-              <div className="p-4 rounded-lg bg-neutral-900/50 border border-neutral-800">
-                <span className="text-neutral-400 block mb-1">Department</span>
-                <span className="text-white font-medium">{currentUser.department || 'Not specified'}</span>
+      {/* Main Workspace Body */}
+      {!currentUser ? (
+        /* Login Card */
+        <div className="flex-1 flex items-center justify-center p-6">
+          <div className="w-full max-w-sm rounded-xl border border-neutral-800 bg-neutral-950 p-6 shadow-2xl">
+            <div className="flex items-center gap-2 mb-4">
+              <UserIcon className="h-5 w-5 text-neutral-400" />
+              <h2 className="text-lg font-semibold text-white">Sovereign Sign In</h2>
+            </div>
+            <p className="text-xs text-neutral-400 mb-6">
+              Enter your local on-premise credentials to access the workbench.
+            </p>
+
+            {loginError && (
+              <div className="mb-4 rounded-lg bg-red-950/60 border border-red-800/80 p-3 text-xs text-red-300">
+                {loginError}
               </div>
-              <div className="p-4 rounded-lg bg-neutral-900/50 border border-neutral-800">
-                <span className="text-neutral-400 block mb-1">Two-Factor Authentication</span>
-                <span className={currentUser.totp_enabled ? 'text-emerald-400 font-medium' : 'text-neutral-500 font-medium'}>
-                  {currentUser.totp_enabled ? 'Enforced (TOTP Active)' : 'Not Enabled'}
-                </span>
-              </div>
-            </div>
+            )}
 
-            <div className="p-4 rounded-lg bg-neutral-900/30 border border-neutral-800/80">
-              <h3 className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-emerald-400" />
-                Security Verification
-              </h3>
-              <p className="text-xs text-neutral-400 leading-relaxed">
-                Authentication verified via air-gapped HMAC-SHA256 Bearer JWT. Session active in PostgreSQL with append-only audit tracking. Next phases will unlock confidential agent workflows and document pipelines.
-              </p>
-            </div>
-          </div>
-        ) : (
-          /* Authentication Screen */
-          <div className="max-w-md w-full mx-auto space-y-6">
-            <div className="text-center space-y-2">
-              <h2 className="text-xl font-bold tracking-tight text-white">
-                Sovereign Authentication
-              </h2>
-              <p className="text-xs text-neutral-400">
-                Access your confidential on-premise workbench
-              </p>
-            </div>
-
-            <form onSubmit={handleLogin} className="bg-neutral-950 border border-neutral-800 rounded-xl p-6 space-y-4">
-              {loginError && (
-                <div className="p-3 rounded-lg bg-rose-950/60 border border-rose-800 text-rose-200 text-xs flex items-center gap-2">
-                  <ShieldAlert className="h-4 w-4 shrink-0 text-rose-400" />
-                  <span>{loginError}</span>
-                </div>
-              )}
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-neutral-300 flex items-center gap-1.5">
-                  <UserIcon className="h-3.5 w-3.5 text-neutral-400" />
-                  Username
-                </label>
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-neutral-400 mb-1">Username</label>
                 <input
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="e.g. sysadmin"
+                  className="w-full rounded-lg bg-neutral-900 border border-neutral-800 px-3 py-2 text-sm text-white focus:border-neutral-600 focus:outline-none"
                   required
-                  className="w-full px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-lg text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-neutral-600 transition font-mono"
                 />
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-neutral-300 flex items-center gap-1.5">
-                  <Lock className="h-3.5 w-3.5 text-neutral-400" />
-                  Password
-                </label>
+              <div>
+                <label className="block text-xs font-medium text-neutral-400 mb-1">Password</label>
                 <input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••••••"
+                  className="w-full rounded-lg bg-neutral-900 border border-neutral-800 px-3 py-2 text-sm text-white focus:border-neutral-600 focus:outline-none"
                   required
-                  className="w-full px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-lg text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-neutral-600 transition font-mono"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-2.5 px-4 rounded-lg bg-white hover:bg-neutral-200 text-black font-semibold text-xs tracking-wide transition uppercase disabled:opacity-50"
+                className="w-full mt-2 rounded-lg bg-white text-black font-semibold py-2 px-4 text-sm hover:bg-neutral-200 transition-colors disabled:opacity-50"
               >
                 {loading ? 'Authenticating...' : 'Sign In'}
               </button>
-
-              <div className="pt-2 text-center">
-                <p className="text-[11px] text-neutral-500">
-                  Initial setup? Use <code className="text-neutral-400 bg-neutral-900 px-1 py-0.5 rounded font-mono">python scripts/setup_admin.py</code>
-                </p>
-              </div>
             </form>
           </div>
-        )}
-      </main>
+        </div>
+      ) : (
+        /* Authenticated Workbench Dashboard */
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Sub Navigation Bar */}
+          <div className="border-b border-neutral-800 bg-neutral-950/60 px-6 flex items-center justify-between">
+            <div className="flex gap-1 py-2">
+              <button
+                onClick={() => setActiveTab('workbench')}
+                className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  activeTab === 'workbench'
+                    ? 'bg-neutral-800 text-white shadow-sm'
+                    : 'text-neutral-400 hover:text-white hover:bg-neutral-900'
+                }`}
+              >
+                <Sparkles className="h-3.5 w-3.5 text-blue-400" />
+                Agent Workbench
+              </button>
 
-      {/* Footer */}
-      <footer className="border-t border-neutral-900 px-6 py-3 text-center text-[11px] text-neutral-600 font-mono">
-        Sovereign On-Premise Workbench &middot; Local Offline Inference &middot; Zero Outbound WAN Telemetry
-      </footer>
+              <button
+                onClick={() => setActiveTab('knowledge')}
+                className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  activeTab === 'knowledge'
+                    ? 'bg-neutral-800 text-white shadow-sm'
+                    : 'text-neutral-400 hover:text-white hover:bg-neutral-900'
+                }`}
+              >
+                <FileText className="h-3.5 w-3.5 text-emerald-400" />
+                Knowledge Base (RAG)
+              </button>
+
+              <button
+                onClick={() => setActiveTab('sandbox')}
+                className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  activeTab === 'sandbox'
+                    ? 'bg-neutral-800 text-white shadow-sm'
+                    : 'text-neutral-400 hover:text-white hover:bg-neutral-900'
+                }`}
+              >
+                <Terminal className="h-3.5 w-3.5 text-amber-400" />
+                Tools & Math Console
+              </button>
+            </div>
+
+            <div className="text-[11px] font-mono text-neutral-500">
+              Session ID: <span className="text-neutral-300">{currentSessionId}</span>
+            </div>
+          </div>
+
+          {/* TAB 1: AGENT WORKBENCH */}
+          {activeTab === 'workbench' && (
+            <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+              {/* Left Column: Prompt Input & Controls */}
+              <div className="w-full lg:w-2/5 border-r border-neutral-800 p-6 flex flex-col gap-4 overflow-y-auto">
+                <div>
+                  <h2 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-blue-400" />
+                    Task Prompt
+                  </h2>
+                  <p className="text-xs text-neutral-400 mb-3">
+                    Submit industrial workflows, equations, technical analysis, or report generation tasks.
+                  </p>
+
+                  <textarea
+                    rows={6}
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    placeholder="e.g. Calculate the integral of x^3 * cos(x), check refinery safety limits for reactor R-101, and generate a Word inspection report."
+                    className="w-full rounded-xl bg-neutral-900 border border-neutral-800 p-3 text-sm text-white placeholder-neutral-500 focus:border-neutral-600 focus:outline-none resize-none font-sans"
+                  />
+                </div>
+
+                {/* Routing Mode Selector */}
+                <div className="flex items-center justify-between bg-neutral-900/60 border border-neutral-800 rounded-lg p-3">
+                  <div>
+                    <label className="text-xs font-medium text-white block">Routing Mode</label>
+                    <span className="text-[10px] text-neutral-400">3-Stage Waterfall Routing</span>
+                  </div>
+                  <select
+                    value={roleOverride}
+                    onChange={(e) => setRoleOverride(e.target.value)}
+                    className="bg-neutral-950 border border-neutral-700 text-xs text-white rounded px-2.5 py-1 focus:outline-none"
+                  >
+                    <option value="auto">Auto (3-Stage Waterfall)</option>
+                    <option value="reasoning">Force Reasoning (Qwen 2.5 3B)</option>
+                    <option value="coding">Force Coding (Qwen Coder 3B)</option>
+                  </select>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleExecuteAgent}
+                    disabled={agentRunning || !prompt.trim()}
+                    className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-blue-600 text-white font-medium py-2.5 px-4 text-xs hover:bg-blue-500 transition-colors disabled:opacity-50"
+                  >
+                    {agentRunning ? (
+                      <>
+                        <RotateCw className="h-3.5 w-3.5 animate-spin" />
+                        Executing Task...
+                      </>
+                    ) : (
+                      <>
+                        <Play className="h-3.5 w-3.5 fill-current" />
+                        Execute Workflow
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setPrompt('')
+                      setAgentResponse(null)
+                      setThinkingSteps([])
+                      setLiveTools([])
+                      setRouteDecision(null)
+                      setCurrentSessionId('session_' + Math.random().toString(36).substring(2, 9))
+                    }}
+                    className="px-3 py-2.5 rounded-lg border border-neutral-800 text-xs text-neutral-400 hover:text-white hover:bg-neutral-900 transition-colors"
+                  >
+                    Reset
+                  </button>
+                </div>
+
+                {/* Generated Artifacts Box */}
+                {sessionArtifacts.length > 0 && (
+                  <div className="mt-2 rounded-xl border border-neutral-800 bg-neutral-950 p-4">
+                    <h3 className="text-xs font-semibold text-white mb-2 flex items-center gap-1.5">
+                      <Download className="h-3.5 w-3.5 text-emerald-400" />
+                      Generated Deliverables ({sessionArtifacts.length})
+                    </h3>
+                    <div className="space-y-2">
+                      {sessionArtifacts.map((art, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs font-mono"
+                        >
+                          <div className="truncate pr-2">
+                            <span className="text-white font-medium">{art.filename}</span>
+                            <span className="text-neutral-500 block text-[10px]">
+                              {Math.round(art.size_bytes / 1024)} KB &middot; {art.mime_type.split('/').pop()}
+                            </span>
+                          </div>
+                          <a
+                            href={art.download_url}
+                            download={art.filename}
+                            className="px-2.5 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-white text-[11px] flex items-center gap-1 transition-colors"
+                          >
+                            <Download className="h-3 w-3" />
+                            Download
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Right Column: Thought Trace, Tool Dispatches, and Output */}
+              <div className="flex-1 p-6 overflow-y-auto flex flex-col gap-4">
+                {/* Live Status Header */}
+                <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`h-2.5 w-2.5 rounded-full ${
+                        agentRunning ? 'bg-amber-400 animate-ping' : 'bg-emerald-400'
+                      }`}
+                    />
+                    <span className="text-xs font-mono text-neutral-300">
+                      {agentStatus || 'Workbench standby.'}
+                    </span>
+                  </div>
+
+                  {routeDecision && (
+                    <div className="flex items-center gap-2 text-xs font-mono">
+                      <span className="px-2 py-0.5 rounded bg-blue-950 border border-blue-800 text-blue-300">
+                        {routeDecision.role.toUpperCase()}
+                      </span>
+                      <span className="text-neutral-500">
+                        ({Math.round(routeDecision.confidence * 100)}% via {routeDecision.method})
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Thinking Trace Accordion */}
+                {thinkingSteps.length > 0 && (
+                  <div className="rounded-xl border border-neutral-800 bg-neutral-950 overflow-hidden">
+                    <button
+                      onClick={() => setShowThinking(!showThinking)}
+                      className="w-full px-4 py-2.5 bg-neutral-900/60 flex items-center justify-between text-xs font-semibold text-neutral-300 hover:bg-neutral-900 transition-colors"
+                    >
+                      <span className="flex items-center gap-2">
+                        <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+                        Model Chain-of-Thought ({thinkingSteps.length} reasoning steps)
+                      </span>
+                      {showThinking ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    </button>
+                    {showThinking && (
+                      <div className="p-4 space-y-2 text-xs font-mono text-neutral-400 bg-black/40 border-t border-neutral-800 max-h-60 overflow-y-auto">
+                        {thinkingSteps.map((step, idx) => (
+                          <div key={idx} className="whitespace-pre-wrap leading-relaxed">
+                            {step}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Tool Invocations Cards */}
+                {liveTools.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="text-xs font-semibold text-neutral-400 flex items-center gap-1.5 uppercase font-mono">
+                      <Terminal className="h-3.5 w-3.5 text-blue-400" />
+                      Executed Tools ({liveTools.length})
+                    </h3>
+                    <div className="grid grid-cols-1 gap-2">
+                      {liveTools.map((t, idx) => (
+                        <div
+                          key={idx}
+                          className="rounded-lg border border-neutral-800 bg-neutral-950 p-3 text-xs font-mono"
+                        >
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="font-semibold text-blue-400 flex items-center gap-1.5">
+                              {t.status === 'success' ? (
+                                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                              ) : (
+                                <XCircle className="h-3.5 w-3.5 text-red-400" />
+                              )}
+                              {t.tool_name}
+                            </span>
+                            <span className="text-[10px] text-neutral-500 uppercase">{t.status}</span>
+                          </div>
+                          <div className="bg-neutral-900 p-2 rounded text-neutral-300 text-[11px] whitespace-pre-wrap max-h-32 overflow-y-auto">
+                            {t.output || t.error || JSON.stringify(t.data, null, 2)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Final Agent Response */}
+                {agentResponse && (
+                  <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-5 flex flex-col gap-3">
+                    <div className="flex items-center justify-between border-b border-neutral-800 pb-2">
+                      <h3 className="text-xs font-semibold text-white flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                        Synthesized Response
+                      </h3>
+                      <span className="text-[10px] text-neutral-500 font-mono">Complete</span>
+                    </div>
+                    <div className="text-sm text-neutral-200 leading-relaxed whitespace-pre-wrap font-sans">
+                      {agentResponse}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: KNOWLEDGE BASE (RAG) */}
+          {activeTab === 'knowledge' && (
+            <div className="flex-1 flex flex-col lg:flex-row overflow-hidden p-6 gap-6">
+              {/* Document Ingestion & List */}
+              <div className="w-full lg:w-1/2 flex flex-col gap-4">
+                <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-5">
+                  <h2 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
+                    <Upload className="h-4 w-4 text-emerald-400" />
+                    Ingest Technical Document
+                  </h2>
+                  <p className="text-xs text-neutral-400 mb-4">
+                    Upload PDFs, Word docs, spreadsheets, or text files for layout-aware chunking and pgvector storage.
+                  </p>
+
+                  <form onSubmit={handleUploadDocument} className="space-y-3">
+                    <input
+                      type="file"
+                      accept=".pdf,.docx,.doc,.xlsx,.csv,.txt,.md"
+                      onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                      className="w-full text-xs text-neutral-400 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-neutral-800 file:text-white hover:file:bg-neutral-700 cursor-pointer"
+                    />
+                    <button
+                      type="submit"
+                      disabled={uploading || !uploadFile}
+                      className="w-full rounded-lg bg-emerald-600 text-white font-medium py-2 px-4 text-xs hover:bg-emerald-500 transition-colors disabled:opacity-50"
+                    >
+                      {uploading ? 'Parsing & Embedding...' : 'Ingest Document'}
+                    </button>
+                  </form>
+                </div>
+
+                {/* Documents Table */}
+                <div className="flex-1 rounded-xl border border-neutral-800 bg-neutral-950 p-5 overflow-y-auto">
+                  <h3 className="text-xs font-semibold text-neutral-400 uppercase font-mono mb-3">
+                    Ingested Documents ({documents.length})
+                  </h3>
+                  {documents.length === 0 ? (
+                    <p className="text-xs text-neutral-500 font-mono">No documents ingested in this collection.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {documents.map((doc) => (
+                        <div
+                          key={doc.id}
+                          className="flex items-center justify-between bg-neutral-900 border border-neutral-800 rounded-lg p-3 text-xs font-mono"
+                        >
+                          <div>
+                            <span className="text-white font-semibold block">{doc.filename}</span>
+                            <span className="text-neutral-400 text-[10px]">
+                              {doc.total_chunks} chunks &middot; {Math.round(doc.file_size_bytes / 1024)} KB
+                              {doc.is_ocr_applied && ' (OCR applied)'}
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-emerald-400 border border-emerald-900 bg-emerald-950/60 px-2 py-0.5 rounded">
+                            ACTIVE
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Vector Search Playground */}
+              <div className="w-full lg:w-1/2 flex flex-col gap-4">
+                <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-5">
+                  <h2 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
+                    <Search className="h-4 w-4 text-blue-400" />
+                    Semantic Vector Search Playground
+                  </h2>
+                  <p className="text-xs text-neutral-400 mb-4">
+                    Query pgvector cosine similarity space directly to inspect chunk retrieval and source citations.
+                  </p>
+
+                  <form onSubmit={handleSearchKnowledge} className="flex gap-2">
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="e.g. maximum operating pressure for crude distillation tower"
+                      className="flex-1 rounded-lg bg-neutral-900 border border-neutral-800 px-3 py-2 text-xs text-white placeholder-neutral-500 focus:border-neutral-600 focus:outline-none"
+                    />
+                    <button
+                      type="submit"
+                      disabled={searching || !searchQuery.trim()}
+                      className="rounded-lg bg-blue-600 text-white font-medium py-2 px-4 text-xs hover:bg-blue-500 transition-colors disabled:opacity-50"
+                    >
+                      {searching ? 'Searching...' : 'Search'}
+                    </button>
+                  </form>
+                </div>
+
+                {/* Search Results */}
+                <div className="flex-1 rounded-xl border border-neutral-800 bg-neutral-950 p-5 overflow-y-auto">
+                  <h3 className="text-xs font-semibold text-neutral-400 uppercase font-mono mb-3">
+                    Retrieved Results ({searchResults.length})
+                  </h3>
+                  {searchResults.length === 0 ? (
+                    <p className="text-xs text-neutral-500 font-mono">Submit a query to inspect vector citations.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {searchResults.map((res, idx) => (
+                        <div
+                          key={idx}
+                          className="rounded-lg border border-neutral-800 bg-neutral-900 p-3 text-xs space-y-1.5"
+                        >
+                          <div className="flex items-center justify-between font-mono text-[11px]">
+                            <span className="font-semibold text-emerald-400">
+                              [Source: {res.filename} {res.page_number ? `| Page ${res.page_number}` : ''}]
+                            </span>
+                            <span className="text-blue-400">
+                              Similarity: {(res.similarity * 100).toFixed(1)}%
+                            </span>
+                          </div>
+                          <p className="text-neutral-300 whitespace-pre-wrap leading-relaxed text-xs">
+                            {res.content}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: TOOLS & MATH CONSOLE */}
+          {activeTab === 'sandbox' && (
+            <div className="flex-1 p-6 overflow-y-auto flex flex-col lg:flex-row gap-6">
+              {/* Symbolic Math Evaluator */}
+              <div className="w-full lg:w-1/2 rounded-xl border border-neutral-800 bg-neutral-950 p-5 flex flex-col gap-4">
+                <div>
+                  <h2 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
+                    <Cpu className="h-4 w-4 text-amber-400" />
+                    SymPy Safe Symbolic Mathematics
+                  </h2>
+                  <p className="text-xs text-neutral-400 mb-3">
+                    Evaluates exact algebraic equations, differentiation, integration, and limits without eval().
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs font-medium text-neutral-400 block mb-1">Mathematical Expression</label>
+                    <input
+                      type="text"
+                      value={mathExpr}
+                      onChange={(e) => setMathExpr(e.target.value)}
+                      className="w-full rounded-lg bg-neutral-900 border border-neutral-800 p-2 text-xs text-white font-mono focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    {['evaluate', 'differentiate', 'integrate', 'solve', 'simplify'].map((op) => (
+                      <button
+                        key={op}
+                        type="button"
+                        onClick={() => setMathOperation(op)}
+                        className={`px-3 py-1.5 rounded text-xs font-mono transition-colors ${
+                          mathOperation === op
+                            ? 'bg-amber-600 text-white'
+                            : 'bg-neutral-900 text-neutral-400 hover:text-white'
+                        }`}
+                      >
+                        {op}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    onClick={handleRunMath}
+                    className="w-full rounded-lg bg-white text-black font-semibold py-2 px-4 text-xs hover:bg-neutral-200 transition-colors"
+                  >
+                    Evaluate Symbolically
+                  </button>
+                </div>
+
+                {mathOutput && (
+                  <div className="mt-2 rounded-lg bg-neutral-900 border border-neutral-800 p-3 font-mono text-xs text-emerald-400 whitespace-pre-wrap">
+                    {mathOutput}
+                  </div>
+                )}
+              </div>
+
+              {/* Air-Gapped Code Sandbox Security Specification */}
+              <div className="w-full lg:w-1/2 rounded-xl border border-neutral-800 bg-neutral-950 p-5 flex flex-col gap-3">
+                <h2 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
+                  <Terminal className="h-4 w-4 text-blue-400" />
+                  Air-Gapped Docker Sandbox Policy
+                </h2>
+                <div className="space-y-2 text-xs text-neutral-300 font-mono">
+                  <div className="p-2.5 rounded bg-neutral-900 border border-neutral-800">
+                    <span className="text-blue-400 font-bold block mb-1">Fail-Closed Guarantee</span>
+                    If Docker is down or unresponsive, untrusted execution is refused. No subprocess fallback.
+                  </div>
+                  <div className="p-2.5 rounded bg-neutral-900 border border-neutral-800">
+                    <span className="text-blue-400 font-bold block mb-1">Network Isolation</span>
+                    network_mode: &quot;none&quot; &middot; Outbound egress blocked at kernel namespace.
+                  </div>
+                  <div className="p-2.5 rounded bg-neutral-900 border border-neutral-800">
+                    <span className="text-blue-400 font-bold block mb-1">Resource Constraints</span>
+                    512 MB RAM limit &middot; 50 PIDs limit &middot; Dropped capabilities (ALL).
+                  </div>
+                  <div className="p-2.5 rounded bg-neutral-900 border border-neutral-800">
+                    <span className="text-blue-400 font-bold block mb-1">Path Boundary Isolation</span>
+                    Operations strictly validated inside &lt;workspace&gt;/&lt;session_id&gt;/. Traversal blocked.
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
+export default App

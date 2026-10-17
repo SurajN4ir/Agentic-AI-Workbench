@@ -1,4 +1,5 @@
 import type { HealthStatus, TokenResponse, User } from '../types/auth'
+import type { AgentRunResponse, ArtifactInfo, KnowledgeDoc, SearchResult } from '../types/workbench'
 
 class ApiClient {
   private token: string | null = null
@@ -25,7 +26,6 @@ class ApiClient {
       'Content-Type': 'application/json',
     }
     if (this.token) {
-      // Security rule: tokens ONLY in Authorization header, never in query string
       headers['Authorization'] = `Bearer ${this.token}`
     }
     return headers
@@ -70,6 +70,133 @@ class ApiClient {
 
   async logout(): Promise<void> {
     this.setToken(null)
+  }
+
+  // --- Agent Execution ---
+  async runAgentTask(
+    prompt: string,
+    roleOverride?: string,
+    sessionId?: string,
+    maxIterations: number = 8,
+  ): Promise<AgentRunResponse> {
+    const res = await fetch('/api/v1/agent/run', {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({
+        prompt,
+        role_override: roleOverride || undefined,
+        session_id: sessionId || undefined,
+        max_iterations: maxIterations,
+      }),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Agent task failed' }))
+      throw new Error(err.detail || 'Agent task failed')
+    }
+    return res.json()
+  }
+
+  async streamAgentTask(
+    prompt: string,
+    onEvent: (event: string, data: any) => void,
+    roleOverride?: string,
+    sessionId?: string,
+  ): Promise<void> {
+    const res = await fetch('/api/v1/agent/stream', {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({
+        prompt,
+        role_override: roleOverride || undefined,
+        session_id: sessionId || undefined,
+      }),
+    })
+
+    if (!res.ok || !res.body) {
+      throw new Error('Failed to initiate agent stream')
+    }
+
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+
+      let currentEvent = 'message'
+      for (const line of lines) {
+        if (line.startsWith('event: ')) {
+          currentEvent = line.slice(7).trim()
+        } else if (line.startsWith('data: ')) {
+          const rawData = line.slice(6).trim()
+          try {
+            const parsed = JSON.parse(rawData)
+            onEvent(currentEvent, parsed)
+          } catch {
+            onEvent(currentEvent, rawData)
+          }
+        }
+      }
+    }
+  }
+
+  // --- Knowledge & RAG ---
+  async uploadDocument(file: File, collectionId: string = 'default'): Promise<any> {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('collection_id', collectionId)
+
+    const headers: Record<string, string> = {}
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`
+    }
+
+    const res = await fetch('/api/v1/knowledge/upload', {
+      method: 'POST',
+      headers,
+      body: formData,
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Upload failed' }))
+      throw new Error(err.detail || 'Failed to upload document')
+    }
+    return res.json()
+  }
+
+  async searchKnowledge(query: string, topK: number = 4, collectionId?: string): Promise<SearchResult[]> {
+    const res = await fetch('/api/v1/knowledge/search', {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ query, top_k: topK, collection_id: collectionId }),
+    })
+    if (!res.ok) {
+      throw new Error('Knowledge search failed')
+    }
+    const data = await res.json()
+    return data.results || []
+  }
+
+  async listDocuments(collectionId?: string): Promise<KnowledgeDoc[]> {
+    const url = collectionId
+      ? `/api/v1/knowledge/documents?collection_id=${encodeURIComponent(collectionId)}`
+      : '/api/v1/knowledge/documents'
+    const res = await fetch(url, { headers: this.getHeaders() })
+    if (!res.ok) throw new Error('Failed to list documents')
+    return res.json()
+  }
+
+  // --- Artifacts ---
+  async listArtifacts(sessionId: string): Promise<ArtifactInfo[]> {
+    const res = await fetch(`/api/v1/artifacts/${encodeURIComponent(sessionId)}`, {
+      headers: this.getHeaders(),
+    })
+    if (!res.ok) return []
+    return res.json()
   }
 }
 
