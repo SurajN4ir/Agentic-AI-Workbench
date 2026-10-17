@@ -143,6 +143,63 @@ class ToolRegistry:
             )
         )
 
+        # 4. Deliverable Document Generator (Word .docx, Excel .xlsx, Markdown)
+        self.register(
+            ToolDefinition(
+                name="doc_gen",
+                description="Generate downloadable reports and workbooks (.docx, .xlsx, .md) inside the session workspace.",
+                schema={
+                    "type": "function",
+                    "function": {
+                        "name": "doc_gen",
+                        "description": "Generate a downloadable Word report (.docx), Excel spreadsheet (.xlsx), or Markdown document.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "format": {
+                                    "type": "string",
+                                    "enum": ["docx", "xlsx", "markdown"],
+                                    "description": "The output file format.",
+                                },
+                                "title": {
+                                    "type": "string",
+                                    "description": "Title of the document or report.",
+                                },
+                                "filename": {
+                                    "type": "string",
+                                    "description": "Desired filename (e.g. 'summary_report.docx', 'financial_model.xlsx').",
+                                },
+                                "sections": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "heading": {"type": "string"},
+                                            "body": {"type": "string"},
+                                        },
+                                        "required": ["body"],
+                                    },
+                                    "description": "Text sections for docx or markdown reports.",
+                                },
+                                "table": {
+                                    "type": "object",
+                                    "properties": {
+                                        "headers": {"type": "array", "items": {"type": "string"}},
+                                        "rows": {"type": "array", "items": {"type": "array"}},
+                                    },
+                                    "description": "Optional tabular data to include in the document or spreadsheet.",
+                                },
+                            },
+                            "required": ["format", "title"],
+                        },
+                    },
+                },
+                required_roles={"admin", "developer", "analyst", "user"},
+                handler=self._execute_doc_gen,
+            )
+        )
+
+
 
     def register(self, tool_def: ToolDefinition) -> None:
         self._tools[tool_def.name] = tool_def
@@ -249,6 +306,56 @@ class ToolRegistry:
             error=res.stderr if not res.success else None,
             metadata={"isolated": res.isolated, "execution_time_ms": res.execution_time_ms},
         )
+
+    def _execute_doc_gen(self, input_data: dict[str, Any], session_id: str) -> ToolResult:
+        from app.artifacts.generator import ArtifactGenerator
+        from app.artifacts.models import ReportSpec, SheetSpec, SpreadsheetSpec, TableBlock, TextBlock
+
+        fmt = str(input_data.get("format", "docx")).lower().strip()
+        title = str(input_data.get("title", "Report")).strip()
+        filename = str(input_data.get("filename") or f"{title.lower().replace(' ', '_')}.{fmt}")
+
+        sections_raw = input_data.get("sections", [])
+        table_raw = input_data.get("table")
+
+        blocks: list[TextBlock | TableBlock] = []
+        for s in sections_raw:
+            if isinstance(s, dict) and "body" in s:
+                blocks.append(TextBlock(heading=s.get("heading"), body=s["body"]))
+
+        if isinstance(table_raw, dict) and "headers" in table_raw and "rows" in table_raw:
+            blocks.append(TableBlock(headers=table_raw["headers"], rows=table_raw["rows"], caption=table_raw.get("caption")))
+
+        try:
+            if fmt == "docx":
+                spec = ReportSpec(title=title, sections=blocks, filename=filename)
+                out_path = ArtifactGenerator.generate_docx(spec, session_id)
+            elif fmt == "xlsx":
+                headers = table_raw.get("headers", []) if isinstance(table_raw, dict) else []
+                rows = table_raw.get("rows", []) if isinstance(table_raw, dict) else []
+                sheet = SheetSpec(name=title[:31], headers=headers, rows=rows)
+                sheet_spec = SpreadsheetSpec(sheets=[sheet], filename=filename)
+                out_path = ArtifactGenerator.generate_xlsx(sheet_spec, session_id)
+            elif fmt == "markdown":
+                spec = ReportSpec(title=title, sections=blocks, filename=filename)
+                out_path = ArtifactGenerator.generate_markdown(spec, session_id)
+            else:
+                return ToolResult(status=ToolStatus.ERROR, error=f"Unsupported deliverable format: '{fmt}'")
+
+            return ToolResult(
+                status=ToolStatus.SUCCESS,
+                output=f"Successfully generated deliverable '{out_path.name}' ({out_path.stat().st_size} bytes).",
+                data={
+                    "generated_files": [str(out_path)],
+                    "filename": out_path.name,
+                    "size_bytes": out_path.stat().st_size,
+                    "session_id": session_id,
+                },
+            )
+        except Exception as exc:
+            logger.exception("Deliverable generation failed: %s", exc)
+            return ToolResult(status=ToolStatus.ERROR, error=f"Document generation failed: {exc}")
+
 
     async def execute_tool(
         self,
