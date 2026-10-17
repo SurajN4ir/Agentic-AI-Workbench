@@ -23,6 +23,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
+from app.agent.router import router as agent_router
 from app.config import get_settings
 from app.database import check_database_health, engine
 from app.identity.router import router as auth_router
@@ -125,6 +126,8 @@ def create_app() -> FastAPI:
     app.include_router(routing_router, prefix="/api/v1")
     app.include_router(tools_router, prefix="/api/v1")
     app.include_router(knowledge_router, prefix="/api/v1")
+    app.include_router(agent_router, prefix="/api/v1")
+
 
     # ─── Health endpoints ─────────────────────────────────────────────
     @app.get("/health", include_in_schema=False)

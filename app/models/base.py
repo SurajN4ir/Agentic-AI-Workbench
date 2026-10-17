@@ -8,8 +8,9 @@ without touching agent or workflow code.
 
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
+from typing import Any
 
-from app.models.schemas import EmbeddingResponse, GenerateOptions, ModelResponse
+from app.models.schemas import ChatResponse, EmbeddingResponse, GenerateOptions, ModelResponse
 
 
 class BaseModelProvider(ABC):
@@ -36,6 +37,29 @@ class BaseModelProvider(ABC):
     ) -> AsyncIterator[str]:
         """Stream generated text chunks asynchronously."""
         ...
+
+    @abstractmethod
+    async def chat(
+        self,
+        model: str,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]] | None = None,
+        options: GenerateOptions | None = None,
+    ) -> ChatResponse:
+        """Execute multi-turn chat generation with optional tool calls."""
+        ...
+
+    @abstractmethod
+    def stream_chat(
+        self,
+        model: str,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]] | None = None,
+        options: GenerateOptions | None = None,
+    ) -> AsyncIterator[dict[str, Any]]:
+        """Stream chat generation chunks asynchronously."""
+        ...
+
 
     @abstractmethod
     async def embed(

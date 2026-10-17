@@ -22,6 +22,7 @@ class MathEvalInput(ToolInput):
     expression: str = Field(..., description="Mathematical expression (e.g., '2*x + 5', 'sin(x)**2 + cos(x)**2')")
     variables: dict[str, float] = Field(default_factory=dict, description="Variable substitutions, e.g. {'x': 3.5}")
     mode: MathMode = Field(default="evaluate", description="Evaluation mode")
+    operation: str | None = Field(default=None, description="Alias for mode")
 
 
 class MathEvalResult(ToolResult):
@@ -46,7 +47,13 @@ def evaluate_math(input_data: MathEvalInput) -> MathEvalResult:
     sympy_symbols = {s: sp.Symbol(s) for s in symbol_names}
 
     try:
-        parsed_expr = sp.sympify(expr_str, locals=sympy_symbols, evaluate=False)
+        if "=" in expr_str and not expr_str.startswith("Eq("):
+            parts = expr_str.split("=", 1)
+            lhs = sp.sympify(parts[0].strip(), locals=sympy_symbols, evaluate=False)
+            rhs = sp.sympify(parts[1].strip(), locals=sympy_symbols, evaluate=False)
+            parsed_expr = sp.Eq(lhs, rhs)
+        else:
+            parsed_expr = sp.sympify(expr_str, locals=sympy_symbols, evaluate=False)
         steps.append(f"Parsed Expression: {parsed_expr}")
     except Exception as e:
         return MathEvalResult(
@@ -56,7 +63,13 @@ def evaluate_math(input_data: MathEvalInput) -> MathEvalResult:
         )
 
     final_result_obj = None
-    mode = input_data.mode.lower().strip()
+    raw_mode = input_data.operation or input_data.mode
+    mode = raw_mode.lower().strip()
+    if mode == "eval":
+        mode = "evaluate"
+    elif mode == "diff":
+        mode = "differentiate"
+
 
     try:
         if mode == "evaluate":
@@ -116,11 +129,13 @@ def evaluate_math(input_data: MathEvalInput) -> MathEvalResult:
 
         return MathEvalResult(
             status=ToolStatus.SUCCESS,
+            output=result_str,
             data={"result": result_str, "latex": latex_str},
             result_text=result_str,
             steps=steps,
             latex=latex_str,
         )
+
 
     except Exception as exc:
         return MathEvalResult(

@@ -36,9 +36,11 @@ class ToolResult(BaseModel):
     """Uniform output format for all tool executions."""
 
     status: ToolStatus
+    output: str | None = None
     data: Any | None = None
     error: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
+
 
 
 def validate_workspace_path(

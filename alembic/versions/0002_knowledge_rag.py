@@ -9,10 +9,11 @@ Revision: 0002
 Down Revision: 0001
 """
 
-from alembic import op
-from pgvector.sqlalchemy import Vector
 import sqlalchemy as sa
+from pgvector.sqlalchemy import Vector
 from sqlalchemy.dialects.postgresql import JSONB, UUID
+
+from alembic import op
 
 revision = "0002"
 down_revision = "0001"

@@ -8,6 +8,7 @@ Strictly talks to local/loopback endpoints, rejecting remote network egress.
 import json
 import logging
 import re
+import uuid
 from collections.abc import AsyncIterator
 from typing import Any
 from urllib.parse import urlparse
@@ -16,11 +17,12 @@ import httpx
 
 from app.config import get_settings
 from app.models.base import BaseModelProvider
-from app.models.schemas import EmbeddingResponse, GenerateOptions, ModelResponse
+from app.models.schemas import ChatMessage, ChatResponse, EmbeddingResponse, GenerateOptions, ModelResponse
 
 logger = logging.getLogger("sovereign.models.ollama")
 
 _THINK_REGEX = re.compile(r"<think>(.*?)</think>", re.DOTALL)
+
 
 
 class OllamaProvider(BaseModelProvider):
@@ -148,7 +150,112 @@ class OllamaProvider(BaseModelProvider):
                     except json.JSONDecodeError:
                         continue
 
+    async def chat(
+        self,
+        model: str,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]] | None = None,
+        options: GenerateOptions | None = None,
+    ) -> ChatResponse:
+        opts = options or GenerateOptions()
+        payload: dict[str, Any] = {
+            "model": model,
+            "messages": messages,
+            "stream": False,
+            "options": {
+                "temperature": opts.temperature,
+                "top_p": opts.top_p,
+            },
+        }
+        if tools:
+            payload["tools"] = tools
+        if opts.max_tokens:
+            payload["options"]["num_predict"] = opts.max_tokens
+        if opts.stop:
+            payload["options"]["stop"] = opts.stop
+        if opts.extra_params:
+            payload["options"].update(opts.extra_params)
+
+        async with self._get_client() as client:
+            resp = await client.post("/api/chat", json=payload)
+            resp.raise_for_status()
+            data = resp.json()
+
+        msg_data = data.get("message", {})
+        raw_content = msg_data.get("content", "")
+        thinking: str | None = None
+        content = raw_content
+
+        match = _THINK_REGEX.search(raw_content)
+        if match:
+            thinking = match.group(1).strip()
+            content = _THINK_REGEX.sub("", raw_content).strip()
+
+        raw_tool_calls = msg_data.get("tool_calls")
+        tool_calls: list[dict[str, Any]] | None = None
+        if raw_tool_calls:
+            tool_calls = []
+            for tc in raw_tool_calls:
+                tc_dict = dict(tc)
+                if not tc_dict.get("id"):
+                    tc_dict["id"] = f"call_{uuid.uuid4().hex[:8]}"
+                tool_calls.append(tc_dict)
+
+        duration_ns = data.get("total_duration")
+        duration_ms = duration_ns / 1_000_000.0 if duration_ns else None
+
+        chat_msg = ChatMessage(
+            role=msg_data.get("role", "assistant"),
+            content=content,
+            tool_calls=tool_calls,
+        )
+        return ChatResponse(
+            message=chat_msg,
+            thinking_content=thinking,
+            model=data.get("model", model),
+            total_duration_ms=duration_ms,
+            prompt_eval_count=data.get("prompt_eval_count"),
+            eval_count=data.get("eval_count"),
+        )
+
+    async def stream_chat(
+        self,
+        model: str,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]] | None = None,
+        options: GenerateOptions | None = None,
+    ) -> AsyncIterator[dict[str, Any]]:
+        opts = options or GenerateOptions()
+        payload: dict[str, Any] = {
+            "model": model,
+            "messages": messages,
+            "stream": True,
+            "options": {
+                "temperature": opts.temperature,
+                "top_p": opts.top_p,
+            },
+        }
+        if tools:
+            payload["tools"] = tools
+        if opts.max_tokens:
+            payload["options"]["num_predict"] = opts.max_tokens
+        if opts.stop:
+            payload["options"]["stop"] = opts.stop
+
+        async with self._get_client() as client:
+            async with client.stream("POST", "/api/chat", json=payload) as resp:
+                resp.raise_for_status()
+                async for line in resp.aiter_lines():
+                    if not line:
+                        continue
+                    try:
+                        chunk = json.loads(line)
+                        yield chunk
+                    except json.JSONDecodeError:
+                        continue
+
     async def embed(
+
         self,
         model: str,
         texts: list[str],

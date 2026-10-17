@@ -2,16 +2,16 @@
 alembic/env.py — Alembic migration environment.
 Reads database URL from environment via app.config (no hardcoded credentials).
 """
-import os
 from logging.config import fileConfig
 
-from alembic import context
-from sqlalchemy import engine_from_config, pool
+import app.audit.models  # noqa: F401 — registers AuditEvent
+import app.identity.models  # noqa: F401 — registers User, Session
 
 # Load our models so Alembic can detect schema changes
 from app.database import Base
-import app.identity.models  # noqa: F401 — registers User, Session
-import app.audit.models     # noqa: F401 — registers AuditEvent
+from sqlalchemy import engine_from_config, pool
+
+from alembic import context
 
 config = context.config
 
