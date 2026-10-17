@@ -26,6 +26,7 @@ from slowapi.util import get_remote_address
 from app.config import get_settings
 from app.database import check_database_health, engine
 from app.identity.router import router as auth_router
+from app.knowledge.router import router as knowledge_router
 from app.routing.router import router as routing_router
 from app.tools.router import router as tools_router
 
@@ -123,6 +124,7 @@ def create_app() -> FastAPI:
     app.include_router(auth_router, prefix="/api/v1")
     app.include_router(routing_router, prefix="/api/v1")
     app.include_router(tools_router, prefix="/api/v1")
+    app.include_router(knowledge_router, prefix="/api/v1")
 
     # ─── Health endpoints ─────────────────────────────────────────────
     @app.get("/health", include_in_schema=False)
