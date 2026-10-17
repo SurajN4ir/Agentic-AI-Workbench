@@ -50,8 +50,14 @@ class Settings(BaseSettings):
     # ─── Strict-offline mode ─────────────────────────────────────
     strict_offline: bool = False
 
-    # ─── File uploads ────────────────────────────────────────────
+    # ─── File uploads & workspace ────────────────────────────────
     max_upload_size_bytes: int = 52_428_800  # 50 MB
+    workspace_dir: str = "workspace"
+
+    # ─── Sandbox isolation ───────────────────────────────────────
+    sandbox_image: str = "python:3.11-slim"
+    sandbox_mem_limit: str = "512m"
+    sandbox_timeout_seconds: int = 15
 
     # ─── CORS ────────────────────────────────────────────────────
     cors_allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000"

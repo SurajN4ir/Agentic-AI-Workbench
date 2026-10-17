@@ -17,3 +17,5 @@ slowapi==0.1.9
 sse-starlette==2.2.1
 httpx==0.28.1
 scikit-learn==1.9.1
+docker==7.2.0
+sympy==1.14.0
