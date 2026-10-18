@@ -199,6 +199,78 @@ class ToolRegistry:
             )
         )
 
+        # 5. High-performance tabular data and spreadsheet analytics
+        self.register(
+            ToolDefinition(
+                name="spreadsheet",
+                description="Analyze, inspect, filter, aggregate, or compute columns on CSV and Excel datasets.",
+                schema={
+                    "type": "function",
+                    "function": {
+                        "name": "spreadsheet",
+                        "description": "Analyze, filter, aggregate, or compute columns on CSV/Excel files in the session workspace.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "file_path": {
+                                    "type": "string",
+                                    "description": "Path to the CSV or Excel file within the session workspace.",
+                                },
+                                "operation": {
+                                    "type": "string",
+                                    "enum": ["read", "filter", "aggregate", "compute"],
+                                    "description": "Tabular operation: 'read' (preview rows), 'filter' (filter by condition), 'aggregate' (sum, mean, count, min, max), or 'compute' (calculate new column).",
+                                },
+                                "params": {
+                                    "type": "object",
+                                    "description": "Parameters for the operation (e.g. limit, column, value, operator, group_by, function, target_column, formula).",
+                                },
+                            },
+                            "required": ["file_path"],
+                        },
+                    },
+                },
+                required_roles={"admin", "developer", "analyst", "user"},
+                handler=self._execute_spreadsheet,
+            )
+        )
+
+        # 6. Scoped Workspace File System Tool
+        self.register(
+            ToolDefinition(
+                name="file_io",
+                description="Read, write, or list files strictly within the session workspace.",
+                schema={
+                    "type": "function",
+                    "function": {
+                        "name": "file_io",
+                        "description": "Read, write, or list files inside the session workspace. Deletion is prohibited.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "operation": {
+                                    "type": "string",
+                                    "enum": ["read", "write", "list"],
+                                    "description": "File operation: 'read', 'write', or 'list'.",
+                                },
+                                "path": {
+                                    "type": "string",
+                                    "description": "Relative file or directory path in the workspace.",
+                                },
+                                "content": {
+                                    "type": "string",
+                                    "description": "Content to write when operation is 'write'.",
+                                },
+                            },
+                            "required": ["operation"],
+                        },
+                    },
+                },
+                required_roles={"admin", "developer", "analyst", "user"},
+                handler=self._execute_file_io,
+            )
+        )
+
 
 
     def register(self, tool_def: ToolDefinition) -> None:
@@ -356,6 +428,31 @@ class ToolRegistry:
             logger.exception("Deliverable generation failed: %s", exc)
             return ToolResult(status=ToolStatus.ERROR, error=f"Document generation failed: {exc}")
 
+    def _execute_spreadsheet(self, input_data: dict[str, Any], session_id: str) -> ToolResult:
+        from app.tools.spreadsheet import execute_spreadsheet
+
+        file_path = str(input_data.get("file_path", ""))
+        operation = str(input_data.get("operation", "read"))
+        params = input_data.get("params") or {}
+        return execute_spreadsheet(
+            file_path=file_path,
+            operation=operation,
+            params=params,
+            session_id=session_id,
+        )
+
+    def _execute_file_io(self, input_data: dict[str, Any], session_id: str) -> ToolResult:
+        from app.tools.file_io import execute_file_io
+
+        operation = str(input_data.get("operation", "read"))
+        path = str(input_data.get("path", ""))
+        content = input_data.get("content")
+        return execute_file_io(
+            operation=operation,
+            path=path,
+            content=content,
+            session_id=session_id,
+        )
 
     async def execute_tool(
         self,

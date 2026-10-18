@@ -28,6 +28,7 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S", "T20"]      # allow asserts and prints in tests
 "scripts/*" = ["T20"]         # allow print in scripts
+"cli.py" = ["T20"]            # allow print in interactive CLI tool
 
 [tool.mypy]
 python_version = "3.11"
