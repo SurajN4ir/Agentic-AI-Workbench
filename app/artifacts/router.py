@@ -9,14 +9,32 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import FileResponse
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.artifacts.generator import ArtifactGenerator
 from app.artifacts.models import ArtifactInfo, GenerateArtifactRequest
 from app.artifacts.service import ArtifactService
+from app.audit.models import AuditEvent, AuditEventType
+from app.audit.service import emit_event
+from app.database import get_db
 from app.identity.dependencies import get_current_user
 from app.identity.models import User
 
 router = APIRouter(prefix="/artifacts", tags=["Deliverables & Artifacts"])
+
+
+async def _verify_session_ownership(session_id: str, current_user: User, db: AsyncSession) -> None:
+    """Enforces multi-tenant workspace containment: non-admins cannot access other users' session artifacts."""
+    if current_user.role == "admin":
+        return
+    stmt = select(AuditEvent.user_id).where(AuditEvent.resource_id == session_id).limit(1)
+    owner_id = (await db.execute(stmt)).scalar_one_or_none()
+    if owner_id is not None and str(owner_id) != str(current_user.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Access denied: Session '{session_id}' belongs to another user.",
+        )
 
 
 @router.get(
@@ -27,8 +45,10 @@ router = APIRouter(prefix="/artifacts", tags=["Deliverables & Artifacts"])
 async def list_session_artifacts(
     session_id: str,
     current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ) -> list[ArtifactInfo]:
     """Lists all deliverables created during agent task runs inside the session workspace."""
+    await _verify_session_ownership(session_id, current_user, db)
     try:
         return ArtifactService.list_artifacts(session_id)
     except Exception as exc:
@@ -47,8 +67,10 @@ async def download_artifact(
     session_id: str,
     filename: str,
     current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ) -> FileResponse:
     """Streams the requested file with appropriate content-type and disposition headers."""
+    await _verify_session_ownership(session_id, current_user, db)
     try:
         safe_path, mime_type = ArtifactService.get_artifact_file(session_id, filename)
     except FileNotFoundError as fnf:
@@ -79,10 +101,14 @@ async def download_artifact(
 async def generate_artifact(
     request: GenerateArtifactRequest,
     current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ) -> ArtifactInfo:
     """Generates a deliverable file from a structured specification."""
     session_id = request.session_id or str(uuid.uuid4())
     fmt = request.format.lower()
+
+    if request.session_id:
+        await _verify_session_ownership(request.session_id, current_user, db)
 
     try:
         if fmt == "docx":
@@ -102,6 +128,17 @@ async def generate_artifact(
 
         else:
             raise HTTPException(status_code=400, detail=f"Unsupported deliverable format: '{fmt}'")
+
+        await emit_event(
+            db=db,
+            event_type=AuditEventType.ARTIFACT_CREATED,
+            user_id=str(current_user.id),
+            resource_type="artifact",
+            resource_id=session_id,
+            outcome="success",
+            summary=f"Created {fmt} deliverable {target.name} for session {session_id}",
+            detail={"filename": target.name, "format": fmt, "size_bytes": target.stat().st_size},
+        )
 
         mime = ArtifactService.get_mime_type(target)
         return ArtifactInfo(
