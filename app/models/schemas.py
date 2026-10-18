@@ -16,6 +16,8 @@ class ModelConfig(BaseModel):
     label: str = Field(..., description="Display label for the model")
     context_window: int = Field(default=8192, description="Maximum context window in tokens")
     supports_thinking: bool = Field(default=False, description="Whether model outputs thinking/reasoning traces")
+    supports_vision: bool = Field(default=False, description="Whether model supports multimodal vision/image input")
+    supports_tools: bool = Field(default=True, description="Whether model supports native function tool calling")
 
 
 class ModelOption(BaseModel):

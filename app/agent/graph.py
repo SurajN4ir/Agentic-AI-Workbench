@@ -60,14 +60,34 @@ class AgentGraphBuilder:
         prompt = state.get("prompt", "")
         file_meta_raw = state.get("file_metadata", [])
         file_metadata = [FileMetadata(**fm) if isinstance(fm, dict) else fm for fm in file_meta_raw]
+        session_id = state.get("session_id", "default")
 
         rd = state.get("route_decision")
         role_override = rd.get("role") if isinstance(rd, dict) else None
         route_decision = self.task_router.route(prompt=prompt, file_metadata=file_metadata, role_override=role_override)
 
-
         role = route_decision.role
-        model_tag = state.get("model_tag") or get_model_for_role(role, default="llama3.2:latest")
+        model_tag = state.get("model_tag") or route_decision.selected_model or get_model_for_role(role, default="llama3.2:latest")
+
+        # Early refusal for unsupported files or configurations
+        if not route_decision.is_supported:
+            refusal_msg = route_decision.refusal_reason or "Unsupported file format or request."
+            return {
+                "route_decision": route_decision.model_dump(),
+                "model_tag": model_tag,
+                "messages": [
+                    {"role": "user", "content": prompt},
+                    {"role": "assistant", "content": refusal_msg},
+                ],
+                "status": "completed",
+                "final_response": refusal_msg,
+                "iteration_count": 0,
+                "tool_retry_count": 0,
+                "tool_calls": [],
+                "tool_results": [],
+                "thinking_trace": [],
+                "artifacts": [],
+            }
 
         sys_prompt = ROLE_SYSTEM_PROMPTS.get(role, ROLE_SYSTEM_PROMPTS["reasoning"])
 
@@ -78,9 +98,43 @@ class AgentGraphBuilder:
             workspace_context = f"\n\n[Attached Files in Session Workspace]: {', '.join(names)}"
 
         full_system_prompt = sys_prompt + workspace_context
+
+        # Read base64 image data if multimodal vision is required
+        image_b64_list: list[str] = []
+        if (route_decision.is_multimodal or route_decision.requires_vision) and file_metadata:
+            import base64
+            from pathlib import Path
+            from app.config import get_settings
+            ws_dir = Path(get_settings().workspace_dir)
+
+            for meta in file_metadata:
+                if meta.is_image:
+                    target_img_path: Path | None = None
+                    if meta.filepath and Path(meta.filepath).exists():
+                        target_img_path = Path(meta.filepath)
+                    else:
+                        candidate1 = ws_dir / session_id / meta.filename
+                        candidate2 = ws_dir / session_id / "uploads" / meta.filename
+                        if candidate1.exists():
+                            target_img_path = candidate1
+                        elif candidate2.exists():
+                            target_img_path = candidate2
+
+                    if target_img_path and target_img_path.is_file():
+                        try:
+                            img_bytes = target_img_path.read_bytes()
+                            b64 = base64.b64encode(img_bytes).decode("utf-8")
+                            image_b64_list.append(b64)
+                        except Exception as read_err:
+                            logger.warning("Failed to read image %s for vision: %s", target_img_path, read_err)
+
+        user_message: dict[str, Any] = {"role": "user", "content": prompt}
+        if image_b64_list:
+            user_message["images"] = image_b64_list
+
         messages = [
             {"role": "system", "content": full_system_prompt},
-            {"role": "user", "content": prompt},
+            user_message,
         ]
 
         return {
@@ -100,9 +154,10 @@ class AgentGraphBuilder:
         """
         Node 2: Generates reasoning response and tool calls via model provider.
         """
-        model_tag = state.get("model_tag", "qwen2.5:3b")
+        model_tag = state.get("model_tag", "llama3.2:latest")
         messages = list(state.get("messages", []))
         user_role = state.get("user_role", "user")
+        route_decision = state.get("route_decision") or {}
 
         # Get permitted tool schemas for the caller's RBAC role
         tool_schemas = self.tool_registry.get_tool_schemas_for_role(user_role)
@@ -115,12 +170,39 @@ class AgentGraphBuilder:
                 tools=tool_schemas if tool_schemas else None,
             )
         except Exception as exc:
-            logger.exception("Inference error in reason_node: %s", exc)
-            return {
-                "status": "error",
-                "error": f"Model inference failure: {exc}",
-                "final_response": f"I encountered an internal error communicating with the local model: {exc}",
-            }
+            logger.exception("Inference error with model '%s': %s", model_tag, exc)
+            fallback_model = route_decision.get("fallback_model")
+            if fallback_model and fallback_model != model_tag:
+                logger.warning("Attempting execution with fallback model '%s'", fallback_model)
+                try:
+                    # Strip images if falling back to text-only model
+                    fallback_messages = []
+                    for m in messages:
+                        if m.get("role") == "user" and "images" in m:
+                            clean_m = dict(m)
+                            clean_m.pop("images", None)
+                            fallback_messages.append(clean_m)
+                        else:
+                            fallback_messages.append(m)
+                    chat_resp = await self.provider.chat(
+                        model=fallback_model,
+                        messages=fallback_messages,
+                        tools=tool_schemas if tool_schemas else None,
+                    )
+                    model_tag = fallback_model
+                except Exception as fallback_exc:
+                    logger.exception("Fallback model '%s' also failed: %s", fallback_model, fallback_exc)
+                    return {
+                        "status": "error",
+                        "error": f"Model inference failure (primary and fallback failed): {fallback_exc}",
+                        "final_response": f"I encountered an internal error communicating with the local models: {fallback_exc}",
+                    }
+            else:
+                return {
+                    "status": "error",
+                    "error": f"Model inference failure: {exc}",
+                    "final_response": f"I encountered an internal error communicating with the local model: {exc}",
+                }
 
         msg = chat_resp.message
         content = msg.content or ""
@@ -202,6 +284,16 @@ class AgentGraphBuilder:
             if not isinstance(path, str) or not path.strip():
                 return "Validation failed: 'path' parameter is required for file_io."
 
+        elif tool_name == "ocr_extract":
+            file_path = args.get("file_path")
+            if not isinstance(file_path, str) or not file_path.strip():
+                return "Validation failed: 'file_path' parameter is required and cannot be empty for ocr_extract."
+
+        elif tool_name == "spreadsheet":
+            file_path = args.get("file_path")
+            if not isinstance(file_path, str) or not file_path.strip():
+                return "Validation failed: 'file_path' parameter is required and cannot be empty for spreadsheet."
+
         return None
 
     def determine_unsatisfied_tool_requirement(self, state: WorkbenchState) -> tuple[str, str] | None:
@@ -238,7 +330,25 @@ class AgentGraphBuilder:
         executed_tools = {tr.get("tool_name") for tr in tool_results}
         available_tool_names = {t["name"] for t in self.tool_registry.list_tools_for_role(user_role)}
 
-        # 3. Code execution requirement (code_sandbox)
+        # 3. Check target_tools from route decision (e.g. ocr_extract, spreadsheet)
+        route_decision = state.get("route_decision") or {}
+        target_tools = route_decision.get("target_tools") or []
+        for target_tool in target_tools:
+            if target_tool in available_tool_names and target_tool not in executed_tools:
+                if target_tool == "ocr_extract":
+                    return (
+                        "ocr_extract",
+                        "TASK NOTICE: The input file requires OCR text extraction. "
+                        "You MUST invoke the 'ocr_extract' tool with the file_path to extract text and telemetry.",
+                    )
+                elif target_tool == "spreadsheet":
+                    return (
+                        "spreadsheet",
+                        "TASK NOTICE: The input file is a spreadsheet. "
+                        "You MUST invoke the 'spreadsheet' tool to inspect or query the data before answering.",
+                    )
+
+        # 4. Code execution requirement (code_sandbox)
         if "code_sandbox" in available_tool_names and "code_sandbox" not in executed_tools:
             code_exec_triggers = [
                 "regression", "calibration", "sensor calibration",
@@ -256,7 +366,7 @@ class AgentGraphBuilder:
                     "You MUST invoke the 'code_sandbox' tool to execute the code inside the isolated container sandbox and obtain verified outputs.",
                 )
 
-        # 4. Mathematical / Engineering calculation requirement (math_eval)
+        # 5. Mathematical / Engineering calculation requirement (math_eval)
         if "math_eval" in available_tool_names and "math_eval" not in executed_tools and "code_sandbox" not in executed_tools:
             math_calc_triggers = [
                 "cstr", "steady-state", "conversion", "kinetics", "reaction kinetics",

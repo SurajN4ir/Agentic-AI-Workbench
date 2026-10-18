@@ -271,6 +271,37 @@ class ToolRegistry:
             )
         )
 
+        # 7. Optical Character Recognition (OCR) Tool
+        self.register(
+            ToolDefinition(
+                name="ocr_extract",
+                description="Extract text, numbers, and tabular data from images or scanned PDF documents using the local OCR pipeline.",
+                schema={
+                    "type": "function",
+                    "function": {
+                        "name": "ocr_extract",
+                        "description": "Extract text, labels, and numbers from an image (.png, .jpg, .webp, .tiff) or scanned document page in the session workspace.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "file_path": {
+                                    "type": "string",
+                                    "description": "Relative file path of the image or PDF in the workspace.",
+                                },
+                                "page_number": {
+                                    "type": "integer",
+                                    "description": "Optional page number for multi-page documents (1-indexed).",
+                                },
+                            },
+                            "required": ["file_path"],
+                        },
+                    },
+                },
+                required_roles={"admin", "developer", "analyst", "user"},
+                handler=self._execute_ocr,
+            )
+        )
+
 
 
     def register(self, tool_def: ToolDefinition) -> None:
@@ -459,6 +490,112 @@ class ToolRegistry:
             content=content,
             session_id=session_id,
         )
+
+    def _execute_ocr(self, input_data: dict[str, Any], session_id: str) -> ToolResult:
+        """Executes OCR extraction on an image or PDF file within the session workspace."""
+        from pathlib import Path
+        from PIL import Image
+        import pypdfium2 as pdfium
+        from app.knowledge.ocr.pipeline import get_ocr_pipeline
+        from app.tools.interface import validate_workspace_path
+
+        file_path_str = str(input_data.get("file_path", "")).strip()
+        if not file_path_str:
+            return ToolResult(
+                status=ToolStatus.ERROR,
+                error="Missing required parameter: 'file_path'.",
+            )
+
+        page_number = int(input_data.get("page_number", 1))
+
+        try:
+            # Resolve workspace path safely
+            resolved_path = validate_workspace_path(file_path_str, session_id=session_id)
+            if not resolved_path.exists():
+                from app.config import get_settings
+                settings = get_settings()
+                alt_path = Path(settings.workspace_dir) / session_id / "uploads" / file_path_str
+                if alt_path.exists():
+                    resolved_path = alt_path
+                else:
+                    return ToolResult(
+                        status=ToolStatus.ERROR,
+                        error=f"File not found within workspace: {file_path_str}",
+                    )
+
+            suffix = resolved_path.suffix.lower()
+            pil_image: Image.Image
+
+            if suffix == ".pdf":
+                try:
+                    pdf = pdfium.PdfDocument(resolved_path)
+                    total_pages = len(pdf)
+                    if page_number < 1 or page_number > total_pages:
+                        return ToolResult(
+                            status=ToolStatus.ERROR,
+                            error=f"Page number {page_number} is out of range for document (1 to {total_pages}).",
+                        )
+                    page = pdf[page_number - 1]
+                    pil_image = page.render(scale=2.0).to_pil()
+                except Exception as pdf_err:
+                    return ToolResult(
+                        status=ToolStatus.ERROR,
+                        error=f"Failed to render PDF page for OCR: {pdf_err}",
+                    )
+            elif suffix in {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tiff"}:
+                try:
+                    pil_image = Image.open(resolved_path)
+                except Exception as img_err:
+                    return ToolResult(
+                        status=ToolStatus.ERROR,
+                        error=f"Failed to open image file: {img_err}",
+                    )
+            else:
+                return ToolResult(
+                    status=ToolStatus.ERROR,
+                    error=f"Unsupported file format for OCR: '{suffix}'. Expected an image (.png, .jpg, .webp, .tiff) or PDF (.pdf).",
+                )
+
+            pipeline = get_ocr_pipeline()
+            ocr_res = pipeline.process_image(pil_image)
+
+            if ocr_res.engine in ("ocr_unavailable", "tesseract_unavailable", "vision_model_unavailable") and not ocr_res.text.strip():
+                return ToolResult(
+                    status=ToolStatus.ERROR,
+                    error="OCR processing failed: No OCR engine is available (Tesseract is not installed and no local vision model is reachable).",
+                    data={"engine": ocr_res.engine, "file_path": str(resolved_path)},
+                )
+
+            if not ocr_res.text.strip():
+                return ToolResult(
+                    status=ToolStatus.SUCCESS,
+                    output="No readable text detected in the provided file.",
+                    data={
+                        "text": "",
+                        "confidence": 0.0,
+                        "engine": ocr_res.engine,
+                        "file_path": str(resolved_path),
+                        "page_number": page_number,
+                    },
+                )
+
+            return ToolResult(
+                status=ToolStatus.SUCCESS,
+                output=ocr_res.text,
+                data={
+                    "text": ocr_res.text,
+                    "confidence": ocr_res.confidence,
+                    "engine": ocr_res.engine,
+                    "file_path": str(resolved_path),
+                    "page_number": page_number,
+                },
+            )
+        except Exception as exc:
+            logger.exception("OCR execution failed on file '%s': %s", file_path_str, exc)
+            return ToolResult(
+                status=ToolStatus.ERROR,
+                error=f"OCR execution failed: {exc}",
+            )
 
     async def execute_tool(
         self,

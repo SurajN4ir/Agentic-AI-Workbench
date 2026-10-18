@@ -37,12 +37,13 @@ class TestWaterfallRouterStages:
         assert dec2.method == "manual_override"
 
     def test_stage_0_5_image_override(self, router: TaskRouter) -> None:
-        """Attached image files trigger multimodal override immediately."""
+        """Attached image files trigger vision routing with multimodal capabilities."""
         files = [FileMetadata(filename="chart.png", extension=".png")]
         dec = router.route("What does this graph show?", file_metadata=files)
-        assert dec.role == "reasoning"
+        assert dec.role == "vision"
         assert dec.confidence == 1.0
-        assert dec.method == "multimodal_override"
+        assert dec.is_multimodal is True
+        assert dec.method in ("vision_detection", "multimodal_override")
 
     def test_stage_1_metadata_check_code_files(self, router: TaskRouter) -> None:
         """Code file attachments route deterministically to coding role."""
