@@ -49,7 +49,24 @@ The codebase underwent a comprehensive security review against the audited refer
 
 ### 3.6. Elevation of Privilege
 - **Threat:** Low-privilege viewer executes arbitrary code via tool execution.
-- **Countermeasure:** Fine-grained Role-Based Access Control (`require_role()`). Tool registry enforces role gating: `code_sandbox` is strictly restricted to `developer`, `analyst`, and `admin` roles.
+- **Countermeasure:** Fine-grained Role-Based Access Control (`require_role()`). Tool registry enforces role gating across both HTTP API and interactive CLI.
+
+#### Tool RBAC Permission Matrix
+
+| Tool Name | Description | Allowed Roles | Policy Enforcement |
+|---|---|---|---|
+| `math_eval` | Symbolic math & equation solver | `admin`, `developer`, `analyst`, `operator`, `viewer` | Safe SymPy AST parsing, zero `eval()` |
+| `rag_search` | Private vector knowledge search | `admin`, `developer`, `analyst`, `operator`, `viewer` | pgvector cosine similarity, collection scoped |
+| `spreadsheet` | Tabular data inspection & compute | `admin`, `developer`, `analyst`, `operator`, `viewer` | AST formula whitelist, power $\le 4$, formula sanitization |
+| `file_io` | Scoped workspace file read/write/list | `admin`, `developer`, `analyst`, `operator` | Workspace canonical realpath check, atomic writes |
+| `doc_gen` | Word, Excel, Markdown generation | `admin`, `developer`, `analyst`, `operator` | Canonical workspace path, format validation |
+| `code_sandbox` | Air-gapped Python execution | `admin`, `developer`, `analyst` | Docker `network=none`, `cap_drop=ALL`, fail-closed |
+
+### 3.7. Workspace File Lifecycle & Audit Retention
+- **Workspace Isolation:** Every session operates in an isolated folder (`workspace/<session_id>/`). Path traversal, symlink escapes, and Windows junction escapes are actively blocked by canonical realpath verification.
+- **Quarantined CLI Staging:** External files attached via the CLI are staged into `workspace/<session_id>/uploads/`, preventing the agent from browsing the host filesystem.
+- **Upload Protection:** Files inside `uploads/` are immutable and protected against modification or deletion by `file_io`.
+- **Decoupled Audit Retention:** Workspace scratch files can be purged (`file_io cleanup`) without impacting persistent, tamper-evident audit logs in the PostgreSQL `audit_events` table.
 
 ---
 

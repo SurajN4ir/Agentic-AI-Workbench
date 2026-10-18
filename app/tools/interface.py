@@ -85,19 +85,42 @@ def validate_workspace_path(
 
     raw_path = Path(path_str)
     if raw_path.is_absolute():
-        # Absolute path provided: must resolve inside session_root
         target_path = raw_path.resolve()
     else:
-        # Relative path: resolve relative to session_root
         target_path = (session_root / raw_path).resolve()
 
-    # Enforce strict boundary check
+    # Enforce strict boundary check using relative_to
     try:
         target_path.relative_to(session_root)
     except ValueError:
         raise PermissionError(
             f"Security Violation: Access denied for path '{path_str}'. Path lies outside session workspace '{session_root}'."
         )
+
+    # Canonical realpath check against symlink escapes and Windows junctions
+    import os
+
+    canonical_target = Path(os.path.realpath(target_path))
+    canonical_root = Path(os.path.realpath(session_root))
+    try:
+        canonical_target.relative_to(canonical_root)
+    except ValueError:
+        raise PermissionError(
+            f"Security Violation: Symlink/Junction escape detected for path '{path_str}'. Real target '{canonical_target}' is outside workspace '{canonical_root}'."
+        )
+
+    # Check all existing intermediate parent directories for symlinks pointing outside
+    curr = target_path
+    while curr != session_root and curr != curr.parent:
+        if curr.is_symlink():
+            resolved_link = curr.resolve()
+            try:
+                resolved_link.relative_to(session_root)
+            except ValueError:
+                raise PermissionError(
+                    f"Security Violation: Symlink component '{curr.name}' points outside session workspace."
+                )
+        curr = curr.parent
 
     if create_parents:
         target_path.parent.mkdir(parents=True, exist_ok=True)

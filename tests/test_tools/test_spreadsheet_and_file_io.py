@@ -90,7 +90,11 @@ class TestSpreadsheetTool:
             session_id=session_id,
         )
         assert res.status == ToolStatus.ERROR
-        assert "invalid characters" in str(res.error).lower() or "syntax" in str(res.error).lower()
+        assert (
+            "security check failed" in str(res.error).lower()
+            or "dangerous" in str(res.error).lower()
+            or "syntax" in str(res.error).lower()
+        )
 
 
 class TestFileIOTool:
@@ -120,7 +124,7 @@ class TestFileIOTool:
 
         res_list = execute_file_io(operation="list", session_id=session_id)
         assert res_list.status == ToolStatus.SUCCESS
-        assert "a.txt" in res_list.files
+        assert any("a.txt" in f for f in res_list.files)
         assert any("b.txt" in f for f in res_list.files)
 
     def test_reject_path_traversal(self) -> None:

@@ -49,6 +49,7 @@ reference_files/
 chroma_db/
 logs/
 *.log
+.workbench_pids.json
 *.db
 *.db-shm
 *.db-wal

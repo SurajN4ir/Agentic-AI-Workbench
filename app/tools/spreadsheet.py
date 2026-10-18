@@ -1,18 +1,26 @@
 """
-app/tools/spreadsheet.py — Lightweight, Pure Python Tabular Data Analysis Tool
+app/tools/spreadsheet.py — Safe, High-Performance Tabular Data Analysis Tool
 =============================================================================
-Adapted from sovereign-agent reference architecture (SIH PS 26117).
-Provides fast, deterministic read, filter, aggregate, and formula computations
-on CSV and Excel (.xlsx) datasets using built-in csv and openpyxl.
-Zero pandas dependency required; ultra-fast load time and memory efficiency.
+Attribution: Adapted from sathwik-anumandla/sovereign-agent (SIH PS 26117).
+Hardened for enterprise production with AST-based formula computation,
+resource exhaustion bounds (zip bombs, row/column limits), and CSV/Excel formula
+injection sanitization.
+
+Guarantees:
+1. Zero pandas dependency — pure Python with csv & openpyxl read-only streaming.
+2. Expression Safety: AST whitelist; zero eval(), exec(), or arbitrary attribute access.
+3. Bounded exponentiation (power <= 4) and safe division-by-zero handling.
+4. Resource limits: max 25 MB file size, 50,000 rows, 200 columns.
+5. Formula injection mitigation: cell strings starting with =, +, -, @ are sanitized on export.
+6. Graceful handling of corrupted/malformed workbooks.
 """
 
 from __future__ import annotations
 
+import ast
 import csv
+import math
 import operator
-import re
-from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Literal
 
@@ -20,6 +28,16 @@ import openpyxl
 from pydantic import Field
 
 from app.tools.interface import ToolInput, ToolResult, ToolStatus, validate_workspace_path
+
+# Resource & Security Limits
+MAX_SPREADSHEET_BYTES = 25 * 1024 * 1024  # 25 MB
+MAX_ROWS = 50_000
+MAX_COLUMNS = 200
+MAX_POWER_EXPONENT = 4
+
+ALLOWED_OPERATIONS = {"read", "filter", "aggregate", "compute"}
+ALLOWED_FILTER_OPERATORS = {"==", "!=", ">", "<", ">=", "<=", "contains"}
+ALLOWED_AGG_FUNCTIONS = {"sum", "mean", "count", "min", "max"}
 
 
 class SpreadsheetInput(ToolInput):
@@ -46,75 +64,194 @@ class SpreadsheetResult(ToolResult):
     total_rows: int | None = None
 
 
-ALLOWED_OPERATIONS = {"read", "filter", "aggregate", "compute"}
-ALLOWED_FILTER_OPERATORS = {"==", "!=", ">", "<", ">=", "<=", "contains"}
-ALLOWED_AGG_FUNCTIONS = {"sum", "mean", "count", "min", "max"}
+def _sanitize_cell_for_export(val: Any) -> Any:
+    """Mitigate CSV/Excel Formula Injection (DDE attacks).
+
+    Prepends single quote if string starts with formula tokens (=, +, -, @, \\t, \\r).
+    """
+    if isinstance(val, str) and val:
+        if val[0] in ("=", "+", "-", "@", "\t", "\r"):
+            return f"'{val}"
+    return val
 
 
 def _load_table(file_path: Path) -> tuple[list[str], list[dict[str, Any]]]:
-    """Loads CSV or XLSX into a list of column names and row dictionaries."""
+    """Loads CSV or XLSX into a list of column names and row dictionaries with strict bounds."""
+    # Check file size limit
+    file_size = file_path.stat().st_size
+    if file_size > MAX_SPREADSHEET_BYTES:
+        raise ValueError(
+            f"Spreadsheet file size ({file_size} bytes) exceeds maximum limit of {MAX_SPREADSHEET_BYTES} bytes."
+        )
+
     suffix = file_path.suffix.lower()
+
     if suffix in [".csv", ".tsv", ".txt"]:
         sep = "\t" if suffix == ".tsv" else ","
-        with file_path.open("r", encoding="utf-8", errors="replace", newline="") as f:
-            reader = csv.DictReader(f, delimiter=sep)
-            columns = reader.fieldnames or []
-            rows: list[dict[str, Any]] = []
-            for r in reader:
-                # Type convert numeric values
-                converted: dict[str, Any] = {}
-                for k, v in r.items():
-                    if v is None or v == "":
-                        converted[k] = None
-                    else:
-                        try:
-                            if "." in v:
-                                converted[k] = float(v)
-                            else:
-                                converted[k] = int(v)
-                        except ValueError:
-                            converted[k] = v
-                rows.append(converted)
-            return list(columns), rows
+        try:
+            with file_path.open("r", encoding="utf-8", errors="replace", newline="") as f:
+                reader = csv.DictReader(f, delimiter=sep)
+                raw_cols = reader.fieldnames or []
+                if len(raw_cols) > MAX_COLUMNS:
+                    raise ValueError(
+                        f"Spreadsheet column count ({len(raw_cols)}) exceeds maximum allowed ({MAX_COLUMNS})."
+                    )
+
+                columns = list(raw_cols)
+                rows: list[dict[str, Any]] = []
+
+                for row_idx, r in enumerate(reader, start=1):
+                    if row_idx > MAX_ROWS:
+                        break  # bounded ingestion
+
+                    converted: dict[str, Any] = {}
+                    for k, v in r.items():
+                        if k is None:
+                            continue
+                        if v is None or v == "":
+                            converted[k] = None
+                        else:
+                            try:
+                                if "." in v:
+                                    converted[k] = float(v)
+                                else:
+                                    converted[k] = int(v)
+                            except ValueError:
+                                converted[k] = v
+                    rows.append(converted)
+
+                return columns, rows
+        except csv.Error as e:
+            raise ValueError(f"Malformed CSV file '{file_path.name}': {e}") from e
 
     elif suffix in [".xlsx", ".xls"]:
-        wb = openpyxl.load_workbook(file_path, data_only=True)
-        sheet = wb.active
-        if sheet is None:
-            return [], []
-        raw_rows = list(sheet.iter_rows(values_only=True))
-        if not raw_rows:
-            return [], []
-        columns = [str(c or f"col_{i}") for i, c in enumerate(raw_rows[0])]
-        rows = []
-        for r in raw_rows[1:]:
-            row_dict: dict[str, Any] = {}
-            for i, col in enumerate(columns):
-                val = r[i] if i < len(r) else None
-                row_dict[col] = val
-            rows.append(row_dict)
-        return columns, rows
+        try:
+            # Use read_only=True to prevent zip bomb decompressed memory inflation
+            wb = openpyxl.load_workbook(file_path, data_only=True, read_only=True)
+            sheet = wb.active
+            if sheet is None:
+                return [], []
+
+            raw_rows_iter = sheet.iter_rows(values_only=True)
+            try:
+                first_row = next(raw_rows_iter)
+            except StopIteration:
+                return [], []
+
+            if not first_row:
+                return [], []
+
+            if len(first_row) > MAX_COLUMNS:
+                raise ValueError(
+                    f"Workbook column count ({len(first_row)}) exceeds maximum allowed ({MAX_COLUMNS})."
+                )
+
+            columns = [str(c or f"col_{i}") for i, c in enumerate(first_row)]
+            rows = []
+
+            for row_idx, r in enumerate(raw_rows_iter, start=1):
+                if row_idx > MAX_ROWS:
+                    break
+                row_dict: dict[str, Any] = {}
+                for i, col in enumerate(columns):
+                    val = r[i] if i < len(r) else None
+                    row_dict[col] = val
+                rows.append(row_dict)
+
+            wb.close()
+            return columns, rows
+        except Exception as e:
+            raise ValueError(f"Malformed or unreadable Excel workbook '{file_path.name}': {e}") from e
 
     raise ValueError(f"Unsupported file format '{suffix}'. Expected .xlsx, .xls, .csv, or .tsv")
 
 
 def _save_table(file_path: Path, columns: list[str], rows: list[dict[str, Any]]) -> None:
-    """Saves rows back to CSV or XLSX."""
+    """Saves rows back to CSV or XLSX with formula injection sanitization."""
     suffix = file_path.suffix.lower()
     if suffix in [".csv", ".tsv", ".txt"]:
         sep = "\t" if suffix == ".tsv" else ","
         with file_path.open("w", encoding="utf-8", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=columns, delimiter=sep)
             writer.writeheader()
-            writer.writerows(rows)
+            for r in rows:
+                sanitized_row = {c: _sanitize_cell_for_export(r.get(c)) for c in columns}
+                writer.writerow(sanitized_row)
     elif suffix in [".xlsx", ".xls"]:
         wb = openpyxl.Workbook()
         ws = wb.active
         if ws is not None:
-            ws.append(columns)
+            ws.append([_sanitize_cell_for_export(c) for c in columns])
             for r in rows:
-                ws.append([r.get(c) for c in columns])
+                ws.append([_sanitize_cell_for_export(r.get(c)) for c in columns])
             wb.save(file_path)
+
+
+class SafeFormulaEvaluator(ast.NodeVisitor):
+    """Validates and evaluates arithmetic formulas strictly using an AST whitelist."""
+
+    ALLOWED_OPERATORS = {
+        ast.Add: operator.add,
+        ast.Sub: operator.sub,
+        ast.Mult: operator.mul,
+        ast.Div: operator.truediv,
+        ast.Pow: operator.pow,
+    }
+
+    def __init__(self, allowed_names: set[str]) -> None:
+        self.allowed_names = allowed_names
+
+    def validate_ast(self, node: ast.AST) -> None:
+        """Walks AST and raises ValueError if any unapproved node type is encountered."""
+        for sub_node in ast.walk(node):
+            if isinstance(sub_node, ast.Expression | ast.Load):
+                continue
+            elif isinstance(sub_node, ast.BinOp):
+                if type(sub_node.op) not in self.ALLOWED_OPERATORS:
+                    raise ValueError(f"Unsupported operator: {type(sub_node.op).__name__}")
+                # Exponentiation safety limit: power must be small constant integer
+                if isinstance(sub_node.op, ast.Pow):
+                    if not isinstance(sub_node.right, ast.Constant) or not isinstance(sub_node.right.value, int):
+                        raise ValueError("Exponentiation requires a constant integer exponent.")
+                    if sub_node.right.value < 0 or sub_node.right.value > MAX_POWER_EXPONENT:
+                        raise ValueError(f"Exponent must be between 0 and {MAX_POWER_EXPONENT}.")
+            elif isinstance(sub_node, ast.UnaryOp):
+                if not isinstance(sub_node.op, ast.UAdd | ast.USub):
+                    raise ValueError(f"Unsupported unary operator: {type(sub_node.op).__name__}")
+            elif isinstance(sub_node, ast.Constant):
+                if not isinstance(sub_node.value, int | float):
+                    raise ValueError(f"Only numeric constants are allowed, found: {sub_node.value}")
+            elif isinstance(sub_node, ast.Name):
+                if sub_node.id not in self.allowed_names:
+                    raise ValueError(f"Unknown or disallowed column name in formula: '{sub_node.id}'")
+            elif isinstance(sub_node, ast.Add | ast.Sub | ast.Mult | ast.Div | ast.Pow | ast.UAdd | ast.USub):
+                continue
+            else:
+                raise ValueError(f"Dangerous or unsupported expression element: {type(sub_node).__name__}")
+
+    def eval_node(self, node: ast.AST, context: dict[str, Any]) -> float:
+        """Evaluates AST node given a row context dictionary."""
+        if isinstance(node, ast.Constant):
+            return float(node.value)
+        elif isinstance(node, ast.Name):
+            val = context.get(node.id)
+            if val is None:
+                raise ValueError(f"Column '{node.id}' has empty value.")
+            return float(val)
+        elif isinstance(node, ast.UnaryOp):
+            operand = self.eval_node(node.operand, context)
+            return -operand if isinstance(node.op, ast.USub) else operand
+        elif isinstance(node, ast.BinOp):
+            left = self.eval_node(node.left, context)
+            right = self.eval_node(node.right, context)
+            op_fn = self.ALLOWED_OPERATORS[type(node.op)]
+            if type(node.op) is ast.Div and right == 0:
+                raise ZeroDivisionError("Division by zero in formula computation.")
+            res = float(op_fn(left, right))
+            if math.isnan(res) or math.isinf(res):
+                raise ValueError("Calculation resulted in NaN or Infinity.")
+            return res
+        raise ValueError(f"Cannot evaluate node: {type(node).__name__}")
 
 
 def execute_spreadsheet(
@@ -155,7 +292,7 @@ def execute_spreadsheet(
     total_rows = len(rows)
 
     if op == "read":
-        limit = int(params.get("limit", 50))
+        limit = min(int(params.get("limit", 50)), 500)
         sub_rows = rows[:limit]
         summary = (
             f"Successfully read {len(sub_rows)} rows of {total_rows} total rows "
@@ -186,7 +323,6 @@ def execute_spreadsheet(
                 error=f"Unsupported filter operator '{raw_op}'. Allowed: {sorted(ALLOWED_FILTER_OPERATORS)}",
             )
 
-        # Build comparison predicate
         filtered: list[dict[str, Any]] = []
         for r in rows:
             cell = r.get(col)
@@ -216,7 +352,7 @@ def execute_spreadsheet(
             if matched:
                 filtered.append(r)
 
-        limit = int(params.get("limit", 100))
+        limit = min(int(params.get("limit", 100)), 1000)
         sub = filtered[:limit]
         summary = (
             f"Filter on '{col} {raw_op} {val}' matched {len(filtered)} rows. "
@@ -321,57 +457,50 @@ def execute_spreadsheet(
                 error="Parameters 'target_column' and 'formula' are required for operation 'compute'",
             )
 
-        # Validate formula expression: strictly allows simple binary math e.g. "colA + colB" or "colA * 1.05"
-        pattern = r"^([a-zA-Z_]\w*)\s*([\+\-\*\/])\s*([a-zA-Z_]\w*|\d+(?:\.\d+)?)$"
-        match = re.match(pattern, formula)
-        if not match:
+        # Parse formula into AST
+        try:
+            expr_ast = ast.parse(formula, mode="eval")
+        except SyntaxError as e:
             return SpreadsheetResult(
                 status=ToolStatus.ERROR,
-                error=f"Formula '{formula}' contains invalid characters or unsupported syntax. Expected: 'colA + colB' or 'colA * 1.5'.",
+                error=f"Syntax error in formula '{formula}': {e}",
             )
 
-        left_token, op_token, right_token = match.groups()
-        if left_token not in columns:
-            return SpreadsheetResult(status=ToolStatus.ERROR, error=f"Column '{left_token}' not found.")
-
-        is_right_numeric = False
+        evaluator = SafeFormulaEvaluator(allowed_names=set(columns))
         try:
-            right_num = float(right_token)
-            is_right_numeric = True
-        except ValueError:
-            if right_token not in columns:
-                return SpreadsheetResult(status=ToolStatus.ERROR, error=f"Column '{right_token}' not found.")
+            evaluator.validate_ast(expr_ast)
+        except ValueError as val_err:
+            return SpreadsheetResult(
+                status=ToolStatus.ERROR,
+                error=f"Formula security check failed: {val_err}",
+            )
 
-        ops: dict[str, Callable[[float, float], float]] = {
-            "+": operator.add,
-            "-": operator.sub,
-            "*": operator.mul,
-            "/": operator.truediv,
-        }
-        math_fn = ops[op_token]
-
+        # Compute row by row using AST evaluator
+        calc_errors = 0
         for r in rows:
-            l_val = r.get(left_token)
-            r_val = right_num if is_right_numeric else r.get(right_token)
-            if l_val is not None and r_val is not None:
-                try:
-                    res_val = math_fn(float(l_val), float(r_val))
-                    r[new_col] = round(res_val, 4)
-                except (ValueError, TypeError, ZeroDivisionError):
-                    r[new_col] = None
-            else:
+            try:
+                calc_val = evaluator.eval_node(expr_ast.body, r)
+                r[new_col] = round(calc_val, 4)
+            except ZeroDivisionError:
                 r[new_col] = None
+                calc_errors += 1
+            except Exception:
+                r[new_col] = None
+                calc_errors += 1
 
         if new_col not in columns:
             columns.append(new_col)
 
-        # Save back to disk
+        # Save back to disk safely
         try:
             _save_table(validated_path, columns, rows)
         except Exception as e:
             return SpreadsheetResult(status=ToolStatus.ERROR, error=f"Failed saving updated file: {e}")
 
-        summary = f"Successfully computed column '{new_col}' = '{formula}' and updated '{validated_path.name}'."
+        summary = (
+            f"Successfully computed column '{new_col}' = '{formula}' on {total_rows} rows "
+            f"({calc_errors} nulls/division-by-zero)."
+        )
         return SpreadsheetResult(
             status=ToolStatus.SUCCESS,
             data=rows[:50],
