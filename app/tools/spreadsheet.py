@@ -298,8 +298,40 @@ def execute_spreadsheet(
             f"Successfully read {len(sub_rows)} rows of {total_rows} total rows "
             f"across {len(columns)} columns: {columns}."
         )
+
+        # Build clean markdown table representation for LLM context
+        lines = [summary]
+        if sub_rows:
+            header_line = " | ".join(str(c) for c in columns)
+            sep_line = " | ".join("---" for _ in columns)
+            lines.extend([f"| {header_line} |", f"| {sep_line} |"])
+            for r in sub_rows:
+                row_str = " | ".join(str(r.get(c, "")) for c in columns)
+                lines.append(f"| {row_str} |")
+
+        # Compute quick summary stats for numeric columns
+        stat_summaries = []
+        for col in columns:
+            col_floats = []
+            for r in rows:
+                v = r.get(col)
+                if v is not None:
+                    try:
+                        col_floats.append(float(v))
+                    except (ValueError, TypeError):
+                        pass
+            if len(col_floats) == total_rows and total_rows > 0:
+                min_v = min(col_floats)
+                max_v = max(col_floats)
+                mean_v = sum(col_floats) / len(col_floats)
+                stat_summaries.append(f"{col}: min={min_v}, max={max_v}, mean={round(mean_v, 4)}, count={len(col_floats)}")
+        if stat_summaries:
+            lines.append("\nSummary Statistics:\n" + "\n".join(f"- {s}" for s in stat_summaries))
+
+        output_text = "\n".join(lines)
         return SpreadsheetResult(
             status=ToolStatus.SUCCESS,
+            output=output_text,
             data=sub_rows,
             summary=summary,
             columns=columns,
@@ -360,6 +392,7 @@ def execute_spreadsheet(
         )
         return SpreadsheetResult(
             status=ToolStatus.SUCCESS,
+            output=summary,
             data=sub,
             summary=summary,
             columns=columns,
@@ -422,6 +455,7 @@ def execute_spreadsheet(
             summary = f"Aggregated '{agg_col}' ({agg_func}) grouped by '{group_by}' ({len(agg_rows)} groups)."
             return SpreadsheetResult(
                 status=ToolStatus.SUCCESS,
+                output=summary,
                 data=agg_rows,
                 summary=summary,
                 columns=[group_by, f"{agg_func}_{agg_col}"],
@@ -441,6 +475,7 @@ def execute_spreadsheet(
             summary = f"Overall aggregation '{agg_func}' for column '{agg_col}' = {total}."
             return SpreadsheetResult(
                 status=ToolStatus.SUCCESS,
+                output=summary,
                 data=data,
                 summary=summary,
                 columns=[f"{agg_func}_{agg_col}"],

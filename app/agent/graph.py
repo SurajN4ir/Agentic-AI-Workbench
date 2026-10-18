@@ -359,7 +359,8 @@ class AgentGraphBuilder:
             has_code_trigger = any(trig in prompt for trig in code_exec_triggers)
             has_prose_code = "```python" in final_resp or "```py" in final_resp
 
-            if has_code_trigger or (has_prose_code and any(w in prompt for w in ["calculate", "compute", "analyze", "regression", "fit", "slope"])):
+            # If spreadsheet was already executed, do not force code_sandbox unless the user explicitly requested code execution
+            if has_code_trigger or (has_prose_code and "spreadsheet" not in executed_tools and any(w in prompt for w in ["calculate", "compute", "analyze", "regression", "fit", "slope"])):
                 return (
                     "code_sandbox",
                     "SECURITY & EXECUTION NOTICE: Ordinary model prose cannot execute code on the host. "
@@ -367,7 +368,7 @@ class AgentGraphBuilder:
                 )
 
         # 5. Mathematical / Engineering calculation requirement (math_eval)
-        if "math_eval" in available_tool_names and "math_eval" not in executed_tools and "code_sandbox" not in executed_tools:
+        if "math_eval" in available_tool_names and "math_eval" not in executed_tools and "code_sandbox" not in executed_tools and "spreadsheet" not in executed_tools:
             math_calc_triggers = [
                 "cstr", "steady-state", "conversion", "kinetics", "reaction kinetics",
                 "arrhenius", "reynolds", "bernoulli", "math_eval", "solve for",
@@ -598,7 +599,21 @@ class AgentGraphBuilder:
         builder.add_node("synthesize_node", self.synthesize_node)
 
         builder.add_edge(START, "route_node")
-        builder.add_edge("route_node", "reason_node")
+
+        def should_route(state: WorkbenchState) -> str:
+            rd = state.get("route_decision") or {}
+            if not rd.get("is_supported", True) or state.get("status") == "completed":
+                return "synthesize_node"
+            return "reason_node"
+
+        builder.add_conditional_edges(
+            "route_node",
+            should_route,
+            {
+                "reason_node": "reason_node",
+                "synthesize_node": "synthesize_node",
+            },
+        )
 
         builder.add_conditional_edges(
             "reason_node",

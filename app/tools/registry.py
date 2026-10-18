@@ -470,7 +470,14 @@ class ToolRegistry:
 
         file_path = str(input_data.get("file_path", ""))
         operation = str(input_data.get("operation", "read"))
-        params = input_data.get("params") or {}
+        raw_params = input_data.get("params")
+        params = dict(raw_params) if isinstance(raw_params, dict) else {}
+
+        # Merge top-level parameters if model provided them directly
+        for k in ("column", "function", "value", "operator", "limit", "group_by", "formula", "target_column"):
+            if k in input_data and k not in params:
+                params[k] = input_data[k]
+
         return execute_spreadsheet(
             file_path=file_path,
             operation=operation,
