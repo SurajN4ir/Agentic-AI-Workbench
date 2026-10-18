@@ -23,6 +23,27 @@ export interface ArtifactInfo {
   download_url: string
 }
 
+export interface CitationDetail {
+  citation_text: string
+  source_file: string
+  page_number?: number | null
+  associated_sentence: string
+  status: 'SUPPORTED' | 'UNSUPPORTED_NUMERIC' | 'FABRICATED_SOURCE' | 'FABRICATED_PAGE' | 'EMPTY_RETRIEVAL' | 'UNVERIFIABLE_SEMANTIC' | string
+  reason: string
+  extracted_numbers?: string[]
+  ground_truth_numbers?: string[]
+  chunk_id?: string | null
+  document_id?: string | null
+  section?: string | null
+  chunk_content?: string | null
+  similarity?: number
+  dense_similarity?: number
+  dense_rank?: number
+  sparse_score?: number
+  sparse_rank?: number
+  rrf_score?: number
+}
+
 export interface AgentRunResponse {
   session_id: string
   status: string
@@ -38,6 +59,7 @@ export interface AgentRunResponse {
   citations_verified?: boolean
   verified_citations?: string[]
   ungrounded_citations?: string[]
+  citation_details?: CitationDetail[]
 }
 
 export interface KnowledgeDoc {

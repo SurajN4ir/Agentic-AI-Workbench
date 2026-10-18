@@ -209,3 +209,54 @@ def test_mixed_grounded_and_ungrounded_citations():
     assert any("maintenance_log.xlsx" in c for c in result.ungrounded_citations)
     assert result.details[0].status == CitationSupportStatus.SUPPORTED
     assert result.details[1].status == CitationSupportStatus.FABRICATED_SOURCE
+
+
+def test_pipe_separated_citation_and_chunk_provenance():
+    validator = CitationValidator()
+    response = (
+        "The turbine operating pressure is 450 PSI [Source 1: turbine_specs.docx | Page 2 | SPECS]."
+    )
+    tool_results = [
+        {
+            "tool": "rag_search",
+            "data": {
+                "results": [
+                    {
+                        "source": "turbine_specs.docx",
+                        "page": 2,
+                        "content": "Turbine envelope: nominal operating pressure is 450 PSI at 3000 RPM.",
+                        "chunk_id": "chunk-101",
+                        "document_id": "doc-901",
+                        "section": "SPECS",
+                        "similarity": 0.94,
+                        "dense_similarity": 0.93,
+                        "dense_rank": 1,
+                        "sparse_score": 18.2,
+                        "sparse_rank": 1,
+                        "rrf_score": 0.033,
+                    }
+                ]
+            },
+        }
+    ]
+
+    result = validator.validate(response, tool_results)
+    assert result.is_valid is True
+    assert "turbine_specs.docx" in result.verified_citations
+    assert len(result.details) == 1
+
+    detail = result.details[0]
+    assert detail.source_file == "turbine_specs.docx"
+    assert detail.page_number == 2
+    assert detail.status == CitationSupportStatus.SUPPORTED
+    assert detail.chunk_id == "chunk-101"
+    assert detail.document_id == "doc-901"
+    assert detail.section == "SPECS"
+    assert detail.similarity == 0.94
+    assert detail.dense_similarity == 0.93
+    assert detail.dense_rank == 1
+    assert detail.sparse_score == 18.2
+    assert detail.rrf_score == 0.033
+    assert "450" in detail.ground_truth_numbers
+    assert "450" in detail.extracted_numbers
+

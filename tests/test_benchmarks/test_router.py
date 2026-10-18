@@ -10,6 +10,7 @@ Integration tests for the Benchmark & Evaluation API endpoints:
 """
 
 import uuid
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from app.identity.models import User
@@ -103,21 +104,24 @@ async def test_trigger_benchmark_run_rbac_enforcement(client: AsyncClient, test_
     assert forbidden_resp.status_code == 403
 
     # 2. Admin user triggers run -> 202 Accepted
-    accept_resp = await client.post(
-        "/api/v1/benchmarks/run",
-        json=payload,
-        headers=auth_headers(admin_user),
-    )
-    assert accept_resp.status_code == 202
-    data = accept_resp.json()
-    assert "run_id" in data
-    assert data["status"] == "running"
+    with patch("app.benchmarks.service.BenchmarkService._execute_evaluation_task", new_callable=AsyncMock):
+        accept_resp = await client.post(
+            "/api/v1/benchmarks/run",
+            json=payload,
+            headers=auth_headers(admin_user),
+        )
+        assert accept_resp.status_code == 202
+        data = accept_resp.json()
+        assert "run_id" in data
+        assert data["status"] == "running"
 
-    run_id = data["run_id"]
+        run_id = data["run_id"]
 
-    # 3. Check progress endpoint
-    prog_resp = await client.get(f"/api/v1/benchmarks/progress/{run_id}", headers=auth_headers(test_user))
-    assert prog_resp.status_code == 200
-    prog_data = prog_resp.json()
-    assert prog_data["run_id"] == run_id
-    assert prog_data["status"] in ("running", "completed")
+        # 3. Check progress endpoint
+        prog_resp = await client.get(f"/api/v1/benchmarks/progress/{run_id}", headers=auth_headers(test_user))
+        assert prog_resp.status_code == 200
+        prog_data = prog_resp.json()
+        assert prog_data["run_id"] == run_id
+        assert prog_data["status"] in ("running", "completed")
+
+

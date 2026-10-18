@@ -48,6 +48,28 @@ class AgentRunRequest(BaseModel):
     file_metadata: list[FileMetadata] | None = Field(default=None, description="Optional metadata for attached files")
 
 
+class CitationDetail(BaseModel):
+    """Detailed audit provenance for an individual citation and claimed fact."""
+    citation_text: str
+    source_file: str
+    page_number: int | None = None
+    associated_sentence: str = ""
+    status: str
+    reason: str = ""
+    extracted_numbers: list[str] = Field(default_factory=list)
+    ground_truth_numbers: list[str] = Field(default_factory=list)
+    chunk_id: str | None = None
+    document_id: str | None = None
+    section: str | None = None
+    chunk_content: str | None = None
+    similarity: float = 0.0
+    dense_similarity: float = 0.0
+    dense_rank: int = 1
+    sparse_score: float = 0.0
+    sparse_rank: int = 1
+    rrf_score: float = 0.0
+
+
 class AgentRunResponse(BaseModel):
     """Structured response returned by completed agent execution."""
     session_id: str
@@ -64,3 +86,5 @@ class AgentRunResponse(BaseModel):
     citations_verified: bool = True
     verified_citations: list[str] = Field(default_factory=list)
     ungrounded_citations: list[str] = Field(default_factory=list)
+    citation_details: list[CitationDetail] = Field(default_factory=list)
+

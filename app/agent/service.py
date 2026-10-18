@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.citation_validator import CitationValidator
 from app.agent.graph import AgentGraphBuilder
-from app.agent.state import AgentRunRequest, AgentRunResponse, WorkbenchState
+from app.agent.state import AgentRunRequest, AgentRunResponse, CitationDetail, WorkbenchState
 from app.audit.service import emit_event
 from app.identity.models import User
 from app.models.base import BaseModelProvider
@@ -115,6 +115,30 @@ class AgentService:
         val_result = citation_validator.validate(raw_response, tool_results)
         final_response_text = val_result.sanitized_response if not val_result.is_valid else raw_response
 
+        citation_details = [
+            CitationDetail(
+                citation_text=d.citation_text,
+                source_file=d.source_file,
+                page_number=d.page_number,
+                associated_sentence=d.associated_sentence,
+                status=d.status.value if hasattr(d.status, "value") else str(d.status),
+                reason=d.reason,
+                extracted_numbers=d.extracted_numbers,
+                ground_truth_numbers=d.ground_truth_numbers,
+                chunk_id=d.chunk_id,
+                document_id=d.document_id,
+                section=d.section,
+                chunk_content=d.chunk_content,
+                similarity=d.similarity,
+                dense_similarity=d.dense_similarity,
+                dense_rank=d.dense_rank,
+                sparse_score=d.sparse_score,
+                sparse_rank=d.sparse_rank,
+                rrf_score=d.rrf_score,
+            )
+            for d in val_result.details
+        ]
+
         # Emit audit trail event
         if db is not None:
             await emit_event(
@@ -135,6 +159,23 @@ class AgentService:
                 },
                 summary=f"Completed agent task ({final_state.get('iteration_count', 0)} iters, {len(tool_results)} tools)",
             )
+            if val_result.details:
+                await emit_event(
+                    db=db,
+                    event_type="citation_validation",
+                    user_id=str(user.id),
+                    resource_type="citation",
+                    resource_id=session_id,
+                    outcome="success" if val_result.is_valid else "warning",
+                    detail={
+                        "is_valid": val_result.is_valid,
+                        "total_citations": len(val_result.details),
+                        "verified_citations": val_result.verified_citations,
+                        "ungrounded_citations": val_result.ungrounded_citations,
+                        "audit_flags": val_result.audit_flags,
+                    },
+                    summary=f"Citation validation: {len(val_result.verified_citations)} verified, {len(val_result.ungrounded_citations)} flagged",
+                )
 
         return AgentRunResponse(
             session_id=session_id,
@@ -151,6 +192,7 @@ class AgentService:
             citations_verified=val_result.is_valid,
             verified_citations=val_result.verified_citations,
             ungrounded_citations=val_result.ungrounded_citations,
+            citation_details=citation_details,
         )
 
     async def stream(
@@ -260,6 +302,29 @@ class AgentService:
                     raw_res = node_update.get("final_response") or ""
                     val_res = CitationValidator().validate(raw_res, all_tool_results)
                     final_text = val_res.sanitized_response if not val_res.is_valid else raw_res
+                    stream_details = [
+                        {
+                            "citation_text": d.citation_text,
+                            "source_file": d.source_file,
+                            "page_number": d.page_number,
+                            "associated_sentence": d.associated_sentence,
+                            "status": d.status.value if hasattr(d.status, "value") else str(d.status),
+                            "reason": d.reason,
+                            "extracted_numbers": d.extracted_numbers,
+                            "ground_truth_numbers": d.ground_truth_numbers,
+                            "chunk_id": d.chunk_id,
+                            "document_id": d.document_id,
+                            "section": d.section,
+                            "chunk_content": d.chunk_content,
+                            "similarity": d.similarity,
+                            "dense_similarity": d.dense_similarity,
+                            "dense_rank": d.dense_rank,
+                            "sparse_score": d.sparse_score,
+                            "sparse_rank": d.sparse_rank,
+                            "rrf_score": d.rrf_score,
+                        }
+                        for d in val_res.details
+                    ]
                     yield {
                         "event": "done",
                         "data": {
@@ -269,5 +334,6 @@ class AgentService:
                             "citations_verified": val_res.is_valid,
                             "verified_citations": val_res.verified_citations,
                             "ungrounded_citations": val_res.ungrounded_citations,
+                            "citation_details": stream_details,
                         },
                     }

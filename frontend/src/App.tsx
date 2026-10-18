@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { api } from './api/client'
 import type { HealthStatus, User } from './types/auth'
-import type { ArtifactInfo, RouteDecision, ToolResultItem } from './types/workbench'
+import type { ArtifactInfo, CitationDetail, RouteDecision, ToolResultItem } from './types/workbench'
 import {
   Shield,
   Server,
@@ -16,6 +16,8 @@ import {
   RotateCw,
   CheckCircle2,
   XCircle,
+  AlertTriangle,
+  Layers,
   Sparkles,
   ChevronDown,
   ChevronRight,
@@ -23,6 +25,7 @@ import {
 } from 'lucide-react'
 import { BenchmarkDashboard } from './components/BenchmarkDashboard'
 import { KnowledgeHub } from './components/KnowledgeHub'
+import { CitationInspectorDrawer } from './components/CitationInspectorDrawer'
 
 
 export const App: React.FC = () => {
@@ -50,6 +53,8 @@ export const App: React.FC = () => {
   const [agentResponse, setAgentResponse] = useState<string | null>(null)
   const [citationsVerified, setCitationsVerified] = useState<boolean | null>(null)
   const [ungroundedCitations, setUngroundedCitations] = useState<string[]>([])
+  const [citationDetails, setCitationDetails] = useState<CitationDetail[]>([])
+  const [selectedCitation, setSelectedCitation] = useState<CitationDetail | null>(null)
   const [sessionArtifacts, setSessionArtifacts] = useState<ArtifactInfo[]>([])
   const [currentSessionId, setCurrentSessionId] = useState<string>('session_' + Math.random().toString(36).substring(2, 9))
 
@@ -106,6 +111,8 @@ export const App: React.FC = () => {
     setLiveTools([])
     setAgentResponse(null)
     setSessionArtifacts([])
+    setCitationDetails([])
+    setSelectedCitation(null)
 
     try {
       await api.streamAgentTask(
@@ -128,6 +135,9 @@ export const App: React.FC = () => {
             if (data.citations_verified !== undefined) {
               setCitationsVerified(data.citations_verified)
               setUngroundedCitations(data.ungrounded_citations || [])
+            }
+            if (data.citation_details) {
+              setCitationDetails(data.citation_details)
             }
           }
         },
@@ -171,6 +181,71 @@ export const App: React.FC = () => {
     } catch (err) {
       setMathOutput(`Error: ${err instanceof Error ? err.message : String(err)}`)
     }
+  }
+
+  // --- Render Synthesized Response with Interactive Clickable Citation Badges ---
+  const renderResponseWithCitations = (text: string) => {
+    const citationRegex = /(\[(?:Source(?:\s+\d+)?:?\s*)?[a-zA-Z0-9_\-.]+\.(?:pdf|docx|xlsx|csv|txt|png|jpg|jpeg|webp|tiff|bmp)(?:\s*[,|]\s*(?:Page|p\.?):?\s*\d+)?(?:[^\]]*)?\])/gi
+    const parts = text.split(citationRegex)
+
+    return parts.map((part, index) => {
+      if (part.match(citationRegex)) {
+        const matched = citationDetails.find(
+          (d) =>
+            d.citation_text.toLowerCase() === part.toLowerCase() ||
+            part.toLowerCase().includes(d.source_file.toLowerCase())
+        )
+
+        const isSupported = matched?.status === 'SUPPORTED'
+        const isMismatch = matched?.status === 'UNSUPPORTED_NUMERIC'
+        const isFabricated =
+          matched?.status === 'FABRICATED_SOURCE' ||
+          matched?.status === 'FABRICATED_PAGE' ||
+          matched?.status === 'EMPTY_RETRIEVAL'
+
+        return (
+          <button
+            key={index}
+            type="button"
+            onClick={() => {
+              if (matched) {
+                setSelectedCitation(matched)
+              } else {
+                setSelectedCitation({
+                  citation_text: part,
+                  source_file: part.replace(/[[\]]/g, ''),
+                  associated_sentence: '',
+                  status: 'UNVERIFIABLE_SEMANTIC',
+                  reason: 'Citation inspected directly from synthesized response.',
+                })
+              }
+            }}
+            className={`inline-flex items-center gap-1 mx-1 px-2 py-0.5 rounded text-xs font-mono font-medium transition-all cursor-pointer border ${
+              isSupported
+                ? 'bg-emerald-950/80 text-emerald-300 border-emerald-700 hover:bg-emerald-900 shadow-sm'
+                : isMismatch
+                ? 'bg-amber-950/80 text-amber-300 border-amber-700 hover:bg-amber-900 shadow-sm'
+                : isFabricated
+                ? 'bg-red-950/80 text-red-300 border-red-700 hover:bg-red-900 shadow-sm'
+                : 'bg-neutral-800 text-blue-300 border-neutral-700 hover:bg-neutral-700 shadow-sm'
+            }`}
+            title="Click to inspect source chunk, dense/sparse similarity, and grounding evidence"
+          >
+            {isSupported ? (
+              <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+            ) : isMismatch ? (
+              <AlertTriangle className="h-3 w-3 text-amber-400" />
+            ) : isFabricated ? (
+              <XCircle className="h-3 w-3 text-red-400" />
+            ) : (
+              <FileText className="h-3 w-3 text-blue-400" />
+            )}
+            <span>{part}</span>
+          </button>
+        )
+      }
+      return <span key={index}>{part}</span>
+    })
   }
 
   return (
@@ -571,8 +646,55 @@ export const App: React.FC = () => {
                         <span className="text-[10px] text-neutral-500 font-mono">Complete</span>
                       </div>
                     </div>
+                    {/* Grounding & Evidence Quick Inspector Bar */}
+                    {citationDetails.length > 0 && (
+                      <div className="rounded-lg bg-neutral-900/80 border border-neutral-800 p-3 space-y-2">
+                        <div className="flex items-center justify-between text-xs font-mono">
+                          <span className="text-neutral-400 flex items-center gap-1.5 font-semibold">
+                            <Layers className="h-3.5 w-3.5 text-blue-400" />
+                            Grounded Citations & Evidence ({citationDetails.length})
+                          </span>
+                          <span className="text-[11px] text-neutral-500">
+                            Click any source badge to inspect exact chunk passage
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {citationDetails.map((cit, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => setSelectedCitation(cit)}
+                              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono border transition-colors ${
+                                cit.status === 'SUPPORTED'
+                                  ? 'bg-emerald-950/50 text-emerald-300 border-emerald-800/80 hover:bg-emerald-900/60'
+                                  : cit.status === 'UNSUPPORTED_NUMERIC'
+                                  ? 'bg-amber-950/50 text-amber-300 border-amber-800/80 hover:bg-amber-900/60'
+                                  : 'bg-red-950/50 text-red-300 border-red-800/80 hover:bg-red-900/60'
+                              }`}
+                            >
+                              {cit.status === 'SUPPORTED' ? (
+                                <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                              ) : cit.status === 'UNSUPPORTED_NUMERIC' ? (
+                                <AlertTriangle className="h-3 w-3 text-amber-400" />
+                              ) : (
+                                <XCircle className="h-3 w-3 text-red-400" />
+                              )}
+                              <span>{cit.source_file}</span>
+                              {cit.page_number && <span className="text-[10px] opacity-75">p.{cit.page_number}</span>}
+                              {cit.similarity !== undefined && cit.similarity > 0 && (
+                                <span className="text-[10px] text-neutral-400">
+                                  ({Math.round(cit.similarity * 100)}%)
+                                </span>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Synthesized Response Body with Interactive Citations */}
                     <div className="text-sm text-neutral-200 leading-relaxed whitespace-pre-wrap font-sans">
-                      {agentResponse}
+                      {renderResponseWithCitations(agentResponse)}
                     </div>
                   </div>
                 )}
@@ -675,6 +797,16 @@ export const App: React.FC = () => {
           {activeTab === 'benchmarks' && <BenchmarkDashboard currentUser={currentUser} />}
         </div>
       )}
+
+      {/* Interactive Citation Inspector Drawer */}
+      <CitationInspectorDrawer
+        citation={selectedCitation}
+        onClose={() => setSelectedCitation(null)}
+        onOpenInKnowledgeHub={() => {
+          setSelectedCitation(null)
+          setActiveTab('knowledge')
+        }}
+      />
     </div>
   )
 }

@@ -37,6 +37,16 @@ class CitationAuditDetail:
     reason: str
     extracted_numbers: list[str] = field(default_factory=list)
     ground_truth_numbers: list[str] = field(default_factory=list)
+    chunk_id: str | None = None
+    document_id: str | None = None
+    section: str | None = None
+    chunk_content: str | None = None
+    similarity: float = 0.0
+    dense_similarity: float = 0.0
+    dense_rank: int = 1
+    sparse_score: float = 0.0
+    sparse_rank: int = 1
+    rrf_score: float = 0.0
 
 
 @dataclass
@@ -58,6 +68,16 @@ class EvidenceChunk:
     page: int | None
     content: str
     numbers: set[str] = field(default_factory=set)
+    chunk_id: str | None = None
+    document_id: str | None = None
+    section: str | None = None
+    similarity: float = 0.0
+    dense_similarity: float = 0.0
+    dense_rank: int = 1
+    sparse_score: float = 0.0
+    sparse_rank: int = 1
+    rrf_score: float = 0.0
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class CitationValidator:
@@ -67,7 +87,7 @@ class CitationValidator:
     """
 
     CITATION_PATTERN = re.compile(
-        r"\[(?:Source(?:\s+\d+)?:?\s*)?([a-zA-Z0-9_\-\.]+\.(?:pdf|docx|xlsx|csv|txt|png|jpg|jpeg|webp|tiff|bmp))(?:\s*,\s*Page:?\s*(\d+))?\]",
+        r"\[(?:Source(?:\s+\d+)?:?\s*)?([a-zA-Z0-9_\-\.]+\.(?:pdf|docx|xlsx|csv|txt|png|jpg|jpeg|webp|tiff|bmp))(?:\s*[,|]\s*(?:Page|p\.?):?\s*(\d+))?(?:[^\]]*)?\]",
         re.IGNORECASE,
     )
 
@@ -100,6 +120,16 @@ class CitationValidator:
                             page = item.get("page")
                             page_int = int(page) if page is not None and str(page).isdigit() else None
                             content = str(item.get("content") or "")
+                            chunk_id = str(item.get("chunk_id")) if item.get("chunk_id") else None
+                            doc_id = str(item.get("document_id")) if item.get("document_id") else None
+                            section = str(item.get("section") or "") if item.get("section") else None
+                            sim = float(item.get("similarity") or 0.0)
+                            dense_sim = float(item.get("dense_similarity") or 0.0)
+                            dense_rank = int(item.get("dense_rank") or 1)
+                            sparse_score = float(item.get("sparse_score") or 0.0)
+                            sparse_rank = int(item.get("sparse_rank") or 1)
+                            rrf_score = float(item.get("rrf_score") or 0.0)
+                            meta = item.get("metadata") if isinstance(item.get("metadata"), dict) else {}
                             if src and content:
                                 has_structured_chunks = True
                                 chunks.append(
@@ -108,6 +138,16 @@ class CitationValidator:
                                         page=page_int,
                                         content=content,
                                         numbers=self.extract_numbers(content),
+                                        chunk_id=chunk_id,
+                                        document_id=doc_id,
+                                        section=section,
+                                        similarity=sim,
+                                        dense_similarity=dense_sim,
+                                        dense_rank=dense_rank,
+                                        sparse_score=sparse_score,
+                                        sparse_rank=sparse_rank,
+                                        rrf_score=rrf_score,
+                                        metadata=meta,
                                     )
                                 )
 
@@ -242,6 +282,16 @@ class CitationValidator:
                     continue
 
                 # 3. Fabricated page number check
+                best_chunk = None
+                if matching_chunks:
+                    if page_num is not None:
+                        for c in matching_chunks:
+                            if c.page == page_num:
+                                best_chunk = c
+                                break
+                    if best_chunk is None:
+                        best_chunk = matching_chunks[0]
+
                 if page_num is not None:
                     pages_present = {c.page for c in matching_chunks if c.page is not None}
                     if pages_present and page_num not in pages_present:
@@ -260,12 +310,23 @@ class CitationValidator:
                                 reason=reason,
                                 extracted_numbers=sorted(sent_numbers),
                                 ground_truth_numbers=sorted(set().union(*(c.numbers for c in matching_chunks))),
+                                chunk_id=best_chunk.chunk_id if best_chunk else None,
+                                document_id=best_chunk.document_id if best_chunk else None,
+                                section=best_chunk.section if best_chunk else None,
+                                chunk_content=best_chunk.content if best_chunk else None,
+                                similarity=best_chunk.similarity if best_chunk else 0.0,
+                                dense_similarity=best_chunk.dense_similarity if best_chunk else 0.0,
+                                dense_rank=best_chunk.dense_rank if best_chunk else 1,
+                                sparse_score=best_chunk.sparse_score if best_chunk else 0.0,
+                                sparse_rank=best_chunk.sparse_rank if best_chunk else 1,
+                                rrf_score=best_chunk.rrf_score if best_chunk else 0.0,
                             )
                         )
                         continue
 
                 # 4. Numerical claim grounding check
                 target_chunks = [c for c in matching_chunks if (page_num is None or c.page == page_num or c.page is None)]
+                target_best_chunk = target_chunks[0] if target_chunks else best_chunk
                 gt_numbers: set[str] = set().union(*(c.numbers for c in target_chunks)) if target_chunks else set()
 
                 unsupported_nums = sent_numbers.difference(gt_numbers)
@@ -285,6 +346,16 @@ class CitationValidator:
                             reason=reason,
                             extracted_numbers=sorted(sent_numbers),
                             ground_truth_numbers=sorted(gt_numbers),
+                            chunk_id=target_best_chunk.chunk_id if target_best_chunk else None,
+                            document_id=target_best_chunk.document_id if target_best_chunk else None,
+                            section=target_best_chunk.section if target_best_chunk else None,
+                            chunk_content=target_best_chunk.content if target_best_chunk else None,
+                            similarity=target_best_chunk.similarity if target_best_chunk else 0.0,
+                            dense_similarity=target_best_chunk.dense_similarity if target_best_chunk else 0.0,
+                            dense_rank=target_best_chunk.dense_rank if target_best_chunk else 1,
+                            sparse_score=target_best_chunk.sparse_score if target_best_chunk else 0.0,
+                            sparse_rank=target_best_chunk.sparse_rank if target_best_chunk else 1,
+                            rrf_score=target_best_chunk.rrf_score if target_best_chunk else 0.0,
                         )
                     )
                     continue
@@ -303,6 +374,16 @@ class CitationValidator:
                         reason=reason,
                         extracted_numbers=sorted(sent_numbers),
                         ground_truth_numbers=sorted(gt_numbers),
+                        chunk_id=target_best_chunk.chunk_id if target_best_chunk else None,
+                        document_id=target_best_chunk.document_id if target_best_chunk else None,
+                        section=target_best_chunk.section if target_best_chunk else None,
+                        chunk_content=target_best_chunk.content if target_best_chunk else None,
+                        similarity=target_best_chunk.similarity if target_best_chunk else 0.0,
+                        dense_similarity=target_best_chunk.dense_similarity if target_best_chunk else 0.0,
+                        dense_rank=target_best_chunk.dense_rank if target_best_chunk else 1,
+                        sparse_score=target_best_chunk.sparse_score if target_best_chunk else 0.0,
+                        sparse_rank=target_best_chunk.sparse_rank if target_best_chunk else 1,
+                        rrf_score=target_best_chunk.rrf_score if target_best_chunk else 0.0,
                     )
                 )
 

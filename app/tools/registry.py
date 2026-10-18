@@ -341,6 +341,14 @@ class ToolRegistry:
                     "section": r.section_type,
                     "content": r.content,
                     "citation": r.citation_header(i),
+                    "chunk_id": str(r.chunk_id),
+                    "document_id": str(r.document_id),
+                    "dense_similarity": round(getattr(r, "dense_similarity", 0.0), 4),
+                    "dense_rank": getattr(r, "dense_rank", 1),
+                    "sparse_score": round(getattr(r, "sparse_score", 0.0), 4),
+                    "sparse_rank": getattr(r, "sparse_rank", 1),
+                    "rrf_score": round(getattr(r, "rrf_score", 0.0), 6),
+                    "metadata": getattr(r, "metadata", {}) or {},
                 }
             )
 
