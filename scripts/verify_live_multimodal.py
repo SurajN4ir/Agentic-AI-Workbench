@@ -14,8 +14,12 @@ import os
 import shutil
 import time
 import uuid
+import sys
 from pathlib import Path
 from typing import Any
+
+# Ensure workspace root is in sys.path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import httpx
 from PIL import Image, ImageDraw, ImageFont
