@@ -35,6 +35,9 @@ export interface AgentRunResponse {
   tool_results: ToolResultItem[]
   artifacts: Array<{ filename: string; path: string; tool: string; session_id: string }>
   duration_ms: number
+  citations_verified?: boolean
+  verified_citations?: string[]
+  ungrounded_citations?: string[]
 }
 
 export interface KnowledgeDoc {

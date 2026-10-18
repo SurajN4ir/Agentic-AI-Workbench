@@ -15,10 +15,12 @@ import logging
 import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
@@ -157,6 +159,21 @@ def create_app() -> FastAPI:
             {"status": "not_ready", "database": "unreachable"},
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
+
+    # ─── Mount Frontend Static Build (SPA) ───────────────────────────
+    frontend_dist = Path("frontend/dist")
+    if frontend_dist.exists() and (frontend_dist / "index.html").exists():
+        if (frontend_dist / "assets").exists():
+            app.mount("/assets", StaticFiles(directory=str(frontend_dist / "assets")), name="assets")
+
+        @app.get("/{full_path:path}", include_in_schema=False)
+        async def serve_spa(full_path: str) -> Response:
+            target = frontend_dist / full_path
+            if full_path and target.is_file():
+                return FileResponse(target)
+            if full_path.startswith("api/") or full_path in ("health", "ready", "docs", "redoc", "openapi.json"):
+                return JSONResponse({"detail": "Not Found"}, status_code=404)
+            return FileResponse(frontend_dist / "index.html")
 
     return app
 

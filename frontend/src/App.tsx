@@ -47,6 +47,8 @@ export const App: React.FC = () => {
   const [showThinking, setShowThinking] = useState(true)
   const [liveTools, setLiveTools] = useState<ToolResultItem[]>([])
   const [agentResponse, setAgentResponse] = useState<string | null>(null)
+  const [citationsVerified, setCitationsVerified] = useState<boolean | null>(null)
+  const [ungroundedCitations, setUngroundedCitations] = useState<string[]>([])
   const [sessionArtifacts, setSessionArtifacts] = useState<ArtifactInfo[]>([])
   const [currentSessionId, setCurrentSessionId] = useState<string>('session_' + Math.random().toString(36).substring(2, 9))
 
@@ -143,6 +145,10 @@ export const App: React.FC = () => {
           } else if (event === 'done') {
             setAgentResponse(data.response)
             setAgentStatus(`Task finished (${data.status}) in ${data.duration_ms}ms`)
+            if (data.citations_verified !== undefined) {
+              setCitationsVerified(data.citations_verified)
+              setUngroundedCitations(data.ungrounded_citations || [])
+            }
           }
         },
         roleOverride === 'auto' ? undefined : roleOverride,
@@ -450,6 +456,8 @@ export const App: React.FC = () => {
                     onClick={() => {
                       setPrompt('')
                       setAgentResponse(null)
+                      setCitationsVerified(null)
+                      setUngroundedCitations([])
                       setThinkingSteps([])
                       setLiveTools([])
                       setRouteDecision(null)
@@ -588,7 +596,19 @@ export const App: React.FC = () => {
                         <CheckCircle2 className="h-4 w-4 text-emerald-400" />
                         Synthesized Response
                       </h3>
-                      <span className="text-[10px] text-neutral-500 font-mono">Complete</span>
+                      <div className="flex items-center gap-2">
+                        {citationsVerified === true && (
+                          <span className="text-[10px] bg-emerald-950/80 text-emerald-400 border border-emerald-800/80 px-2 py-0.5 rounded font-mono">
+                            ✓ Grounded Citations
+                          </span>
+                        )}
+                        {citationsVerified === false && (
+                          <span className="text-[10px] bg-amber-950/80 text-amber-400 border border-amber-800/80 px-2 py-0.5 rounded font-mono">
+                            ⚠ Citations Flagged ({ungroundedCitations.length})
+                          </span>
+                        )}
+                        <span className="text-[10px] text-neutral-500 font-mono">Complete</span>
+                      </div>
                     </div>
                     <div className="text-sm text-neutral-200 leading-relaxed whitespace-pre-wrap font-sans">
                       {agentResponse}
