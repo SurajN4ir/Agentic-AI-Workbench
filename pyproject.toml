@@ -50,6 +50,9 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "--tb=short -q"
+markers = [
+    "integration: mark test as requiring live local services (Ollama, etc.)",
+]
 
 [tool.coverage.run]
 source = ["app"]

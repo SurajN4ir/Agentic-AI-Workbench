@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     debug: bool = False
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
 
+    # ─── Database backend selection ──────────────────────────────
+    database_backend: Literal["postgres", "sqlite"] = "sqlite"
+    sqlite_db_path: str = "workspace/sovereign_workbench.db"
+
     # ─── PostgreSQL ──────────────────────────────────────────────
     postgres_host: str = "127.0.0.1"
     postgres_port: int = 5432
@@ -73,6 +77,8 @@ class Settings(BaseSettings):
     # ─── Derived properties ──────────────────────────────────────
     @property
     def database_url(self) -> str:
+        if self.database_backend == "sqlite":
+            return f"sqlite+aiosqlite:///{self.sqlite_db_path}"
         return (
             f"postgresql+psycopg://{self.postgres_user}:{self.postgres_password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
@@ -80,7 +86,9 @@ class Settings(BaseSettings):
 
     @property
     def database_url_sync(self) -> str:
-        """Sync DSN for Alembic and psycopg-pool."""
+        """Sync DSN for Alembic, scripts, and SQLite."""
+        if self.database_backend == "sqlite":
+            return f"sqlite:///{self.sqlite_db_path}"
         return (
             f"postgresql://{self.postgres_user}:{self.postgres_password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"

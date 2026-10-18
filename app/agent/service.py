@@ -13,6 +13,7 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agent.citation_validator import CitationValidator
 from app.agent.graph import AgentGraphBuilder
 from app.agent.state import AgentRunRequest, AgentRunResponse, WorkbenchState
 from app.audit.service import emit_event
@@ -107,6 +108,12 @@ class AgentService:
 
         tool_results = final_state.get("tool_results", [])
         artifacts = final_state.get("artifacts", [])
+        raw_response = final_state.get("final_response") or ""
+
+        # Validate citations against genuine retrieved tool evidence
+        citation_validator = CitationValidator()
+        val_result = citation_validator.validate(raw_response, tool_results)
+        final_response_text = val_result.sanitized_response if not val_result.is_valid else raw_response
 
         # Emit audit trail event
         if db is not None:
@@ -122,6 +129,9 @@ class AgentService:
                     "tool_calls_count": len(tool_results),
                     "duration_ms": round(duration_ms, 2),
                     "role": typed_decision.role,
+                    "citations_verified": val_result.is_valid,
+                    "verified_citations": val_result.verified_citations,
+                    "ungrounded_citations": val_result.ungrounded_citations,
                 },
                 summary=f"Completed agent task ({final_state.get('iteration_count', 0)} iters, {len(tool_results)} tools)",
             )
@@ -131,13 +141,16 @@ class AgentService:
             status=final_state.get("status", "completed"),
             route_decision=typed_decision,
             model_used=final_state.get("model_tag", "qwen2.5:3b"),
-            response=final_state.get("final_response") or "",
+            response=final_response_text,
             thinking_trace=final_state.get("thinking_trace", []),
             iterations=final_state.get("iteration_count", 0),
             tool_calls_count=len(tool_results),
             tool_results=tool_results,
             artifacts=artifacts,
             duration_ms=round(duration_ms, 2),
+            citations_verified=val_result.is_valid,
+            verified_citations=val_result.verified_citations,
+            ungrounded_citations=val_result.ungrounded_citations,
         )
 
     async def stream(
@@ -195,6 +208,7 @@ class AgentService:
 
         last_thinking_count = 0
         last_tool_result_count = 0
+        all_tool_results: list[dict[str, Any]] = []
 
         async for chunk in graph.astream(initial_state, stream_mode="updates"):
             for node_name, node_update in chunk.items():
@@ -226,11 +240,13 @@ class AgentService:
                                     "id": c.get("id"),
                                     "name": func.get("name"),
                                     "arguments": func.get("arguments"),
+                                    "requires_confirmation": False,
                                 },
                             }
 
                 elif node_name == "tool_node":
                     results = node_update.get("tool_results", [])
+                    all_tool_results = results
                     if len(results) > last_tool_result_count:
                         for res in results[last_tool_result_count:]:
                             yield {
@@ -241,11 +257,17 @@ class AgentService:
 
                 elif node_name == "synthesize_node":
                     duration_ms = (time.perf_counter() - start_time) * 1000
+                    raw_res = node_update.get("final_response") or ""
+                    val_res = CitationValidator().validate(raw_res, all_tool_results)
+                    final_text = val_res.sanitized_response if not val_res.is_valid else raw_res
                     yield {
                         "event": "done",
                         "data": {
-                            "response": node_update.get("final_response"),
+                            "response": final_text,
                             "status": node_update.get("status"),
                             "duration_ms": round(duration_ms, 2),
+                            "citations_verified": val_res.is_valid,
+                            "verified_citations": val_res.verified_citations,
+                            "ungrounded_citations": val_res.ungrounded_citations,
                         },
                     }

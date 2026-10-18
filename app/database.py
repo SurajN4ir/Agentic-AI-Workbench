@@ -66,18 +66,20 @@ def _create_engine_for_url(db_url: str) -> AsyncEngine:
     )
 
 
-# Determine initial active URL based on availability
+# ─── Deliberate Database Backend Selection ────────────────────────────────────
 _active_db_url = settings.database_url
-if not _active_db_url.startswith("sqlite"):
+if settings.database_backend == "postgres":
     if not is_postgres_available(settings.postgres_host, settings.postgres_port):
-        logger.info(
-            "PostgreSQL port (%s:%d) is not reachable. Using persistent local SQLite database (%s).",
-            settings.postgres_host,
-            settings.postgres_port,
-            SQLITE_FALLBACK_URL,
+        raise RuntimeError(
+            f"Configured database backend is 'postgres', but PostgreSQL is not reachable at "
+            f"{settings.postgres_host}:{settings.postgres_port}. "
+            "To prevent silent data divergence, the application refuses to start. "
+            "Either start PostgreSQL or explicitly set DATABASE_BACKEND=sqlite in your environment."
         )
-        Path("workspace").mkdir(parents=True, exist_ok=True)
-        _active_db_url = SQLITE_FALLBACK_URL
+    logger.info("Connecting to production PostgreSQL database at %s:%d", settings.postgres_host, settings.postgres_port)
+else:
+    Path(settings.sqlite_db_path).parent.mkdir(parents=True, exist_ok=True)
+    logger.info("Using deliberate local persistent SQLite database at %s", settings.sqlite_db_path)
 
 # ─── SQLAlchemy Async Engine ──────────────────────────────────────────────────
 engine: AsyncEngine = _create_engine_for_url(_active_db_url)
@@ -110,7 +112,16 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 # ─── Schema initialization ───────────────────────────────────────────────────
 async def init_db() -> None:
-    """Ensures database schema tables exist in the active database engine."""
+    """
+    Ensures database schema tables exist in the active database engine.
+    Auto-table creation is restricted to development/testing environments
+    or SQLite backend. In production with PostgreSQL, migrations (Alembic)
+    must be run explicitly.
+    """
+    if settings.app_env == "production" and settings.database_backend == "postgres":
+        logger.info("Production PostgreSQL mode: skipping auto-creation of tables (use Alembic migrations).")
+        return
+
     # Ensure models are imported so Base.metadata is fully populated
     import app.artifacts.models  # noqa: F401
     import app.audit.models  # noqa: F401

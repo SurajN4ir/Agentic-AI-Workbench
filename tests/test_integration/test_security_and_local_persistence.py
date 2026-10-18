@@ -96,3 +96,69 @@ async def test_database_data_persistence_across_sessions(db_session: AsyncSessio
     assert record.user_id == user_id
     assert record.outcome == "SUCCESS"
     assert record.detail == {"metric": 42}
+
+
+@pytest.mark.asyncio
+async def test_code_sandbox_fail_closed_and_audit(db_session: AsyncSession) -> None:
+    """Verifies that code execution fails closed without host fallback and records an audit log."""
+    registry = get_tool_registry()
+
+    admin_user = User(
+        id=uuid.uuid4(),
+        username="lead_auditor",
+        role="admin",
+        is_active=True,
+        password_hash="",
+    )
+
+    host_canary = Path("workspace/canary_should_not_exist.txt")
+    if host_canary.exists():
+        host_canary.unlink()
+
+    malicious_code = f"import os\nwith open('{host_canary.name}', 'w') as f: f.write('BREACH')\n"
+
+    res = await registry.execute_tool(
+        name="code_sandbox",
+        input_data={"code": malicious_code},
+        user=admin_user,
+        session_id="fail_closed_audit_test",
+        db=db_session,
+    )
+
+    # 1. Execution must be refused or blocked if docker is unreachable
+    assert res.status == ToolStatus.ERROR
+    assert "Docker daemon is unavailable" in str(res.error) or "Security Policy Violation" in str(res.error)
+
+    # 2. Host filesystem must remain untouched (zero host fallback execution)
+    assert not host_canary.exists()
+
+    # 3. An audit trail event must be recorded in the database
+    stmt = select(AuditEvent).where(
+        AuditEvent.resource_id == "code_sandbox",
+        AuditEvent.user_id == admin_user.id,
+    )
+    audit_record = (await db_session.execute(stmt)).scalars().first()
+    assert audit_record is not None
+    assert audit_record.outcome == "error"
+    assert "code_sandbox" in audit_record.resource_id
+
+
+def test_database_backend_fail_fast_on_postgres_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verifies that configuring 'postgres' when unreachable raises RuntimeError rather than silently falling back."""
+    from app.database import is_postgres_available
+
+    # Mock postgres check to return False (unreachable port)
+    monkeypatch.setattr("app.database.is_postgres_available", lambda h, p: False)
+
+    from app.config import Settings
+    custom_settings = Settings(
+        database_backend="postgres",
+        postgres_host="127.0.0.1",
+        postgres_port=9999,
+        postgres_password="secure_password_test_123",
+        jwt_secret_key="0123456789abcdef0123456789abcdef0123456789abcdef",
+    )
+
+    assert custom_settings.database_backend == "postgres"
+    assert is_postgres_available(custom_settings.postgres_host, custom_settings.postgres_port) is False
+

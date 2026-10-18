@@ -23,7 +23,11 @@ class PDFParser(BaseDocumentParser):
     """Layout-aware PDF document parser using pypdfium2."""
 
     def __init__(self, ocr_fallback_fn: Callable[[Image.Image], str] | None = None) -> None:
-        self.ocr_fallback_fn = ocr_fallback_fn
+        if ocr_fallback_fn is not None:
+            self.ocr_fallback_fn: Callable[[Image.Image], str] | None = ocr_fallback_fn
+        else:
+            from app.knowledge.ocr.pipeline import get_ocr_pipeline
+            self.ocr_fallback_fn = get_ocr_pipeline().extract_text
 
     def extract_sections(self, file_path: Path) -> list[DocumentSection]:
         sections: list[DocumentSection] = []

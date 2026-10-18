@@ -60,3 +60,6 @@ class AgentRunResponse(BaseModel):
     tool_results: list[dict[str, Any]] = Field(default_factory=list)
     artifacts: list[dict[str, Any]] = Field(default_factory=list)
     duration_ms: float
+    citations_verified: bool = True
+    verified_citations: list[str] = Field(default_factory=list)
+    ungrounded_citations: list[str] = Field(default_factory=list)
