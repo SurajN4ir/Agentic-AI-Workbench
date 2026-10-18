@@ -85,6 +85,7 @@ Desktop.ini
 htmlcov/
 .mypy_cache/
 .ruff_cache/
+eval_report.md
 
 # --- Docker ---
 docker-compose.override.yml

@@ -2,8 +2,11 @@
 scripts/run_eval.py
 ===================
 CLI tool to execute the Sovereign AI Workbench evaluation benchmark suite.
+Supports live Ollama on-prem models as well as deterministic mock provider for CI/benchmarking.
+
 Usage:
   python scripts/run_eval.py
+  python scripts/run_eval.py --mock
   python scripts/run_eval.py --category symbolic_math
   python scripts/run_eval.py --output report.md
 """
@@ -19,12 +22,17 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.database import AsyncSessionLocal
 from app.identity.models import User
+from eval.mock_provider import MockBenchmarkProvider
 from eval.runner import EvaluationRunner
+
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 
 async def main() -> None:
     parser = argparse.ArgumentParser(description="Sovereign AI Workbench Industrial Evaluation Suite")
     parser.add_argument("--category", type=str, default=None, help="Filter by benchmark category")
+    parser.add_argument("--mock", action="store_true", help="Use deterministic mock provider for fast offline benchmarking")
     parser.add_argument("--output", type=str, default="eval_report.md", help="Path to write Markdown report")
     args = parser.parse_args()
 
@@ -41,14 +49,29 @@ async def main() -> None:
         password_hash="",
     )
 
-    runner = EvaluationRunner()
+    provider = MockBenchmarkProvider() if args.mock else None
+    runner = EvaluationRunner(provider=provider)
     print(f"Loaded {len(runner.cases)} benchmark scenarios from {runner.dataset_path.name}")
+    if args.mock:
+        print("Using deterministic MockBenchmarkProvider")
+    else:
+        print("Using on-premise Ollama provider")
+
     if args.category:
         print(f"Applying category filter: '{args.category}'")
 
     print("\nExecuting evaluation loop...")
-    async with AsyncSessionLocal() as db:
-        report = await runner.run_evaluation(user=admin_user, db=db, category_filter=args.category)
+    db_session = None
+    try:
+        async with AsyncSessionLocal() as session:
+            # Quick check if database is reachable
+            from sqlalchemy import text
+            await session.execute(text("SELECT 1"))
+            db_session = session
+            report = await runner.run_evaluation(user=admin_user, db=db_session, category_filter=args.category)
+    except Exception as exc:
+        print(f"[!] Database connection unavailable ({exc}). Proceeding in decoupled evaluation mode...")
+        report = await runner.run_evaluation(user=admin_user, db=None, category_filter=args.category)
 
     md_report = runner.format_markdown_report(report)
 
