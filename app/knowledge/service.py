@@ -7,6 +7,7 @@ batch embedding generation, and cosine similarity search.
 """
 
 import logging
+import re
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -23,6 +24,30 @@ from app.models.base import BaseModelProvider
 from app.models.registry import get_default_provider, get_model_for_role
 
 logger = logging.getLogger("sovereign.knowledge.service")
+
+
+def _lexical_tokens(text: str) -> list[str]:
+    """Tokenizes text into words, alphanumeric equipment codes, and numbers."""
+    return re.findall(r"[A-Za-z0-9]+(?:-[A-Za-z0-9]+)?", text.lower())
+
+
+def _bm25_score(query_tokens: list[str], chunk_tokens: list[str], avg_doc_len: float, k1: float = 1.5, b: float = 0.75) -> float:
+    """Computes BM25 term frequency score with equipment tag weighting."""
+    if not chunk_tokens or not query_tokens:
+        return 0.0
+    doc_len = len(chunk_tokens)
+    score = 0.0
+    chunk_counts: dict[str, int] = {}
+    for t in chunk_tokens:
+        chunk_counts[t] = chunk_counts.get(t, 0) + 1
+
+    for qt in query_tokens:
+        count = chunk_counts.get(qt, 0)
+        if count > 0:
+            tag_weight = 2.0 if ("-" in qt or any(c.isdigit() for c in qt)) else 1.0
+            tf_comp = (count * (k1 + 1)) / (count + k1 * (1 - b + b * (doc_len / max(avg_doc_len, 1.0))))
+            score += tf_comp * tag_weight
+    return score
 
 
 @dataclass
@@ -142,7 +167,7 @@ class KnowledgeService:
         collection_id: str | None = None,
         min_similarity: float = 0.35,
     ) -> list[SearchResult]:
-        """Performs cosine vector search across document chunks with metadata filtering."""
+        """Performs hybrid dense vector and sparse BM25 search with Reciprocal Rank Fusion."""
         clean_query = query.strip()
         if not clean_query:
             return []
@@ -166,23 +191,61 @@ class KnowledgeService:
             stmt = stmt.where(KnowledgeDocument.collection_id == collection_id)
 
         rows = (await db.execute(stmt)).all()
-        scored_results: list[SearchResult] = []
+        if not rows:
+            return []
+
+        # 1. Compute dense similarities and tokenize chunks for BM25
+        chunk_dense_scores: list[tuple[float, Any, Any]] = []
+        doc_tokens_list: list[list[str]] = []
+        total_len = 0
 
         for chunk, doc in rows:
             chunk_vec = np.array(chunk.embedding, dtype=np.float32)
             chunk_norm = float(np.linalg.norm(chunk_vec))
-            if chunk_norm == 0.0:
-                continue
+            sim = 0.0
+            if chunk_norm > 0.0:
+                sim = float(np.dot(query_vec, chunk_vec) / (query_norm * chunk_norm))
+            chunk_dense_scores.append((sim, chunk, doc))
+            ct = _lexical_tokens(chunk.content)
+            doc_tokens_list.append(ct)
+            total_len += len(ct)
 
-            similarity = float(np.dot(query_vec, chunk_vec) / (query_norm * chunk_norm))
-            if similarity >= min_similarity:
+        avg_doc_len = total_len / max(len(rows), 1)
+        query_tokens = _lexical_tokens(clean_query)
+
+        # 2. Dense ranking
+        dense_ranked = sorted(enumerate(chunk_dense_scores), key=lambda x: x[1][0], reverse=True)
+        dense_ranks = {orig_idx: rank for rank, (orig_idx, _) in enumerate(dense_ranked)}
+
+        # 3. Sparse lexical BM25 ranking
+        sparse_scores = [
+            _bm25_score(query_tokens, doc_tokens_list[i], avg_doc_len)
+            for i in range(len(rows))
+        ]
+        sparse_ranked = sorted(enumerate(sparse_scores), key=lambda x: x[1], reverse=True)
+        sparse_ranks = {orig_idx: rank for rank, (orig_idx, _) in enumerate(sparse_ranked)}
+
+        # 4. Reciprocal Rank Fusion (RRF) & Calibration
+        scored_results: list[SearchResult] = []
+        rrf_k = 60
+        for orig_idx, (dense_sim, chunk, doc) in enumerate(chunk_dense_scores):
+            r_dense = dense_ranks[orig_idx]
+            r_sparse = sparse_ranks[orig_idx]
+            s_sparse = sparse_scores[orig_idx]
+
+            # RRF combined score
+            rrf_score = (0.6 / (rrf_k + r_dense)) + (0.4 / (rrf_k + r_sparse))
+
+            # Calibrated blended similarity preserving cosine scale for downstream consumers
+            blended_sim = 0.5 * max(dense_sim, 0.0) + 0.3 * min(s_sparse / 5.0, 1.0) + 0.2 * min(rrf_score * 50.0, 1.0)
+            if dense_sim >= min_similarity or (s_sparse >= 1.5 and blended_sim >= min_similarity):
                 scored_results.append(
                     SearchResult(
                         chunk_id=chunk.id,
                         document_id=doc.id,
                         filename=doc.filename,
                         content=chunk.content,
-                        similarity=round(similarity, 4),
+                        similarity=round(blended_sim, 4),
                         section_type=chunk.section_type,
                         page_number=chunk.page_number,
                         metadata=chunk.metadata_json,
