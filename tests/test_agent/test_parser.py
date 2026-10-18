@@ -89,3 +89,13 @@ def test_resilience_to_malformed_text():
     assert parse_json_tool_calls("   \n\t  ", AVAILABLE_TOOLS) == []
     assert parse_json_tool_calls("Regular assistant response with no tools.", AVAILABLE_TOOLS) == []
     assert parse_json_tool_calls("```json\n{ broken json here \n```", AVAILABLE_TOOLS) == []
+
+
+def test_parse_malformed_json_with_unescaped_code_quotes():
+    """Verifies that tool call with unescaped quotes in code string (e.g. from local LLMs) is recovered."""
+    content = '{"name": "code_sandbox", "parameters": {"code": "import numpy as np; print(f\\"m: {m}, c: {c}\\")", "timeout_s": "60"}}'
+    calls = parse_json_tool_calls(content, AVAILABLE_TOOLS)
+    assert len(calls) == 1
+    assert calls[0]["function"]["name"] == "code_sandbox"
+    assert "print" in calls[0]["function"]["arguments"]["code"]
+    assert calls[0]["function"]["arguments"]["timeout_s"] == 60

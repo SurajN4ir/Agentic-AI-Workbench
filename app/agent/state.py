@@ -29,6 +29,7 @@ class WorkbenchState(TypedDict, total=False):
     tool_calls: list[dict[str, Any]]
     tool_results: list[dict[str, Any]]
     iteration_count: int
+    tool_retry_count: int
     max_iterations: int
     thinking_trace: list[str]
     artifacts: list[dict[str, Any]]

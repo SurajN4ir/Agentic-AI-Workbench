@@ -30,7 +30,7 @@ from app.models.base import BaseModelProvider
 from app.models.registry import get_default_provider, get_model_for_role
 from app.routing.schemas import FileMetadata
 from app.routing.service import TaskRouter
-from app.tools.interface import ToolStatus
+from app.tools.interface import ToolResult, ToolStatus
 from app.tools.registry import ToolRegistry, get_tool_registry
 
 logger = logging.getLogger("sovereign.agent.graph")
@@ -89,6 +89,7 @@ class AgentGraphBuilder:
             "messages": messages,
             "status": "reasoning",
             "iteration_count": 0,
+            "tool_retry_count": 0,
             "tool_calls": [],
             "tool_results": [],
             "thinking_trace": [],
@@ -157,10 +158,131 @@ class AgentGraphBuilder:
 
         return update
 
+    def _validate_tool_arguments(self, tool_name: str, args: dict[str, Any]) -> str | None:
+        """Validates tool input arguments before execution to prevent malformed runs."""
+        if not isinstance(args, dict):
+            return f"Invalid arguments: expected JSON object, got {type(args).__name__}"
+
+        if tool_name == "code_sandbox":
+            code = args.get("code")
+            if not isinstance(code, str) or not code.strip():
+                return "Validation failed: 'code' parameter is required and cannot be empty for code_sandbox."
+            timeout = args.get("timeout_s")
+            if timeout is not None:
+                try:
+                    t_val = float(timeout)
+                    if t_val <= 0 or t_val > 300:
+                        return f"Validation failed: 'timeout_s' must be between 1 and 300 seconds, got {timeout}."
+                except (ValueError, TypeError):
+                    return f"Validation failed: 'timeout_s' must be a valid number, got {timeout}."
+
+        elif tool_name == "math_eval":
+            expr = args.get("expression")
+            if not isinstance(expr, str) or not expr.strip():
+                return "Validation failed: 'expression' parameter is required and cannot be empty for math_eval."
+
+        elif tool_name == "rag_search":
+            query = args.get("query")
+            if not isinstance(query, str) or not query.strip():
+                return "Validation failed: 'query' parameter is required and cannot be empty for rag_search."
+
+        elif tool_name == "doc_gen":
+            title = args.get("title")
+            content = args.get("content")
+            if not isinstance(title, str) or not title.strip():
+                return "Validation failed: 'title' parameter is required and cannot be empty for doc_gen."
+            if not isinstance(content, str) or not content.strip():
+                return "Validation failed: 'content' parameter is required and cannot be empty for doc_gen."
+
+        elif tool_name == "file_io":
+            op = args.get("operation")
+            path = args.get("path")
+            if not isinstance(op, str) or not op.strip():
+                return "Validation failed: 'operation' parameter is required for file_io."
+            if not isinstance(path, str) or not path.strip():
+                return "Validation failed: 'path' parameter is required for file_io."
+
+        return None
+
+    def determine_unsatisfied_tool_requirement(self, state: WorkbenchState) -> tuple[str, str] | None:
+        """
+        Determines if a task explicitly requires tool invocation that has not yet been satisfied.
+        Uses task routing, prompt intent, response contents, and executed tool history.
+        Does NOT rely solely on fragile keyword matching and respects security refusals.
+        """
+        prompt = (state.get("prompt") or "").lower()
+        final_resp = (state.get("final_response") or "").lower()
+        user_role = state.get("user_role", "user")
+        tool_results = state.get("tool_results", [])
+
+        # 1. Security / Adversarial check:
+        # If the prompt is an adversarial attempt or the model issued a legitimate security refusal,
+        # do not force tool retries.
+        adversarial_indicators = [
+            "/etc/passwd", "/etc/shadow", "hosts", "system32", "cat /",
+            "curl ", "wget ", "whoami", "drop table", "sql injection",
+            "leak secret", "exfiltrat", "bypass",
+        ]
+        if any(adv in prompt for adv in adversarial_indicators):
+            return None
+
+        refusal_indicators = [
+            "access denied", "permission denied", "unauthorized",
+            "i cannot fulfill", "i cannot execute", "security policy",
+            "prohibited", "not permitted", "refuse to",
+        ]
+        if any(ref in final_resp for ref in refusal_indicators):
+            return None
+
+        # 2. Get executed tools and available tools for this user's RBAC role
+        executed_tools = {tr.get("tool_name") for tr in tool_results}
+        available_tool_names = {t["name"] for t in self.tool_registry.list_tools_for_role(user_role)}
+
+        # 3. Code execution requirement (code_sandbox)
+        if "code_sandbox" in available_tool_names and "code_sandbox" not in executed_tools:
+            code_exec_triggers = [
+                "regression", "calibration", "sensor calibration",
+                "run python", "run code", "execute the code", "execute code",
+                "compute using python", "fit a line", "least squares",
+                "linear regression", "data-02",
+            ]
+            has_code_trigger = any(trig in prompt for trig in code_exec_triggers)
+            has_prose_code = "```python" in final_resp or "```py" in final_resp
+
+            if has_code_trigger or (has_prose_code and any(w in prompt for w in ["calculate", "compute", "analyze", "regression", "fit", "slope"])):
+                return (
+                    "code_sandbox",
+                    "SECURITY & EXECUTION NOTICE: Ordinary model prose cannot execute code on the host. "
+                    "You MUST invoke the 'code_sandbox' tool to execute the code inside the isolated container sandbox and obtain verified outputs.",
+                )
+
+        # 4. Mathematical / Engineering calculation requirement (math_eval)
+        if "math_eval" in available_tool_names and "math_eval" not in executed_tools and "code_sandbox" not in executed_tools:
+            math_calc_triggers = [
+                "cstr", "steady-state", "conversion", "kinetics", "reaction kinetics",
+                "arrhenius", "reynolds", "bernoulli", "math_eval", "solve for",
+                "steady-state conversion", "second-order reaction", "eng-03",
+            ]
+            has_math_trigger = any(trig in prompt for trig in math_calc_triggers)
+            has_variable_calc = (
+                any(w in prompt for w in ["calculate", "compute", "solve"])
+                and any(v in prompt for v in ["v=", "v0=", "k=", "ca0=", "mol/l", "temperature", "pressure", "flow rate"])
+            )
+
+            if has_math_trigger or has_variable_calc:
+                return (
+                    "math_eval",
+                    "VERIFICATION NOTICE: The task requires verified engineering/numerical computation. "
+                    "You must NOT perform mental arithmetic or unverified calculation in prose. "
+                    "You MUST invoke the 'math_eval' tool with the exact mathematical expression to compute and verify the result.",
+                )
+
+        return None
+
     def should_continue(self, state: WorkbenchState) -> str:
         """
-        Conditional Edge: Determines whether to execute tools or transition to final synthesis.
-        Enforces max_iterations safety bounds to eliminate infinite loop risks.
+        Conditional Edge: Determines whether to execute tools, retry missing tool calls,
+        or transition to final synthesis. Enforces max_iterations and retry bounds.
         """
         has_tool_calls = bool(state.get("tool_calls"))
         iterations = state.get("iteration_count", 0)
@@ -175,7 +297,53 @@ class AgentGraphBuilder:
                 )
                 return "synthesize_node"
             return "tool_node"
+
+        # Bounded retry: if no tool calls were generated but the task requires a tool
+        retry_count = state.get("tool_retry_count", 0)
+        max_retries = 2
+        if retry_count < max_retries and iterations < max_limit:
+            unsatisfied = self.determine_unsatisfied_tool_requirement(state)
+            if unsatisfied is not None:
+                return "retry_node"
+
         return "synthesize_node"
+
+    async def retry_node(self, state: WorkbenchState) -> dict[str, Any]:
+        """
+        Node: Feeds explicit system guidance back to the model when an unsatisfied
+        tool requirement is detected, bounded by strict retry limits.
+        """
+        retry_count = state.get("tool_retry_count", 0) + 1
+        messages = list(state.get("messages", []))
+        unsatisfied = self.determine_unsatisfied_tool_requirement(state)
+
+        tool_name = "required_tool"
+        feedback = "The task requires invoking a tool to complete verification."
+        if unsatisfied:
+            tool_name, feedback = unsatisfied
+
+        logger.info(
+            "Retrying tool dispatch (attempt %d/2) for required tool '%s'",
+            retry_count,
+            tool_name,
+        )
+
+        directive_msg = {
+            "role": "user",
+            "content": f"[SYSTEM TOOL DISPATCH DIRECTIVE]: {feedback} Please invoke the required tool now.",
+        }
+        messages.append(directive_msg)
+
+        # Increment iteration count as well so retries count toward overall safety bound
+        new_iterations = state.get("iteration_count", 0) + 1
+
+        return {
+            "messages": messages,
+            "tool_retry_count": retry_count,
+            "iteration_count": new_iterations,
+            "status": "retrying_tool",
+            "final_response": "",
+        }
 
     async def tool_node(self, state: WorkbenchState) -> dict[str, Any]:
         """
@@ -194,7 +362,6 @@ class AgentGraphBuilder:
             role=user_role,
             is_active=True,
             password_hash="",  # noqa: S106
-
         )
 
         updated_messages = list(state.get("messages", []))
@@ -213,14 +380,23 @@ class AgentGraphBuilder:
                 except Exception:
                     raw_args = {}
 
-            # Execute tool through secure RBAC-enforcing ToolRegistry
-            tool_result = await self.tool_registry.execute_tool(
-                name=tool_name,
-                input_data=raw_args,
-                user=synthetic_user,
-                session_id=session_id,
-                db=self.db,
-            )
+            # Validate arguments before execution
+            validation_err = self._validate_tool_arguments(tool_name, raw_args)
+            if validation_err:
+                tool_result = ToolResult(
+                    status=ToolStatus.ERROR,
+                    error=validation_err,
+                    metadata={"tool_name": tool_name, "validation_failed": True},
+                )
+            else:
+                # Execute tool through secure RBAC-enforcing ToolRegistry
+                tool_result = await self.tool_registry.execute_tool(
+                    name=tool_name,
+                    input_data=raw_args,
+                    user=synthetic_user,
+                    session_id=session_id,
+                    db=self.db,
+                )
 
             # Record serialized tool result in state
             res_dict = {
@@ -307,6 +483,7 @@ class AgentGraphBuilder:
 
         builder.add_node("route_node", self.route_node)
         builder.add_node("reason_node", self.reason_node)
+        builder.add_node("retry_node", self.retry_node)
         builder.add_node("tool_node", self.tool_node)
         builder.add_node("synthesize_node", self.synthesize_node)
 
@@ -318,11 +495,13 @@ class AgentGraphBuilder:
             self.should_continue,
             {
                 "tool_node": "tool_node",
+                "retry_node": "retry_node",
                 "synthesize_node": "synthesize_node",
             },
         )
 
         builder.add_edge("tool_node", "reason_node")
+        builder.add_edge("retry_node", "reason_node")
         builder.add_edge("synthesize_node", END)
 
         if self.checkpointer:

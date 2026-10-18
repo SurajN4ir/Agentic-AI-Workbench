@@ -295,3 +295,218 @@ async def test_graph_rbac_tool_denial():
     res = final_state["tool_results"][0]
     assert res["status"] == "error"
     assert "Permission denied" in str(res["error"])
+
+
+class MockRetryThenSucceedProvider(BaseModelProvider):
+    """Simulates a model that initially returns prose calculation, but on directive invokes math_eval."""
+
+    def __init__(self) -> None:
+        self.call_count = 0
+
+    async def generate(self, model: str, prompt: str, system: str | None = None, options: GenerateOptions | None = None) -> ModelResponse:
+        return ModelResponse(content="", model=model)
+
+    async def stream(self, model: str, prompt: str, system: str | None = None, options: GenerateOptions | None = None) -> AsyncIterator[str]:
+        yield ""
+
+    async def chat(self, model: str, messages: list[dict[str, Any]], tools: list[dict[str, Any]] | None = None, options: GenerateOptions | None = None) -> ChatResponse:
+        self.call_count += 1
+        last_msg = messages[-1] if messages else {}
+
+        # Turn 3: Received tool execution output
+        if last_msg.get("role") == "tool":
+            return ChatResponse(
+                message=ChatMessage(role="assistant", content="The verified steady-state conversion is X_A = 0.50."),
+                model=model,
+            )
+
+        # Turn 2: Received retry directive from system
+        if "[SYSTEM TOOL DISPATCH DIRECTIVE]" in str(last_msg.get("content", "")):
+            return ChatResponse(
+                message=ChatMessage(
+                    role="assistant",
+                    content="",
+                    tool_calls=[{
+                        "id": "call_retry_math",
+                        "function": {
+                            "name": "math_eval",
+                            "arguments": {"expression": "0.05 * 50 * 2.0 / (1 + 0.05 * 50 * 2.0)", "operation": "eval"},
+                        },
+                    }],
+                ),
+                model=model,
+            )
+
+        # Turn 1: Stubbornly returns prose without tool call
+        return ChatResponse(
+            message=ChatMessage(role="assistant", content="The steady-state conversion is approximately 50% calculated mentally."),
+            model=model,
+        )
+
+    async def stream_chat(self, model: str, messages: list[dict[str, Any]], tools: list[dict[str, Any]] | None = None, options: GenerateOptions | None = None) -> AsyncIterator[dict[str, Any]]:
+        yield {}
+
+    async def embed(self, model: str, texts: list[str]) -> EmbeddingResponse:
+        return EmbeddingResponse(embeddings=[[0.1] * 768], model=model, dimension=768)
+
+    async def list_models(self) -> list[str]:
+        return ["qwen2.5:3b"]
+
+    async def health_check(self) -> bool:
+        return True
+
+
+@pytest.mark.asyncio
+async def test_graph_tool_retry_when_tool_missing_then_invoked():
+    """
+    REGRESSION TEST:
+    Verifies that when a computation task (CSTR conversion) is answered in prose without a tool call,
+    the StateGraph detects the unsatisfied requirement, triggers retry_node, prompts the model,
+    and successfully completes once the tool is invoked.
+    """
+    provider = MockRetryThenSucceedProvider()
+    builder = AgentGraphBuilder(provider=provider)
+    graph = builder.build()
+
+    state: WorkbenchState = {
+        "session_id": "test_tool_retry_success",
+        "user_id": "00000000-0000-0000-0000-000000000001",
+        "user_role": "user",
+        "username": "engineer",
+        "prompt": "Calculate the steady-state conversion for a second-order reaction in a CSTR with V=500L, v0=10L/min, k=0.05 L/(mol*min), CA0=2.0 mol/L.",
+        "max_iterations": 8,
+        "iteration_count": 0,
+        "status": "initialized",
+    }
+
+    final_state = await graph.ainvoke(state)
+    assert final_state["status"] == "completed"
+    assert final_state["tool_retry_count"] == 1
+    assert len(final_state["tool_results"]) == 1
+    assert final_state["tool_results"][0]["tool_name"] == "math_eval"
+    assert "0.50" in final_state["final_response"]
+
+
+class MockStubbornProseProvider(BaseModelProvider):
+    """Never issues tool calls, always returns prose code block."""
+
+    async def generate(self, model: str, prompt: str, system: str | None = None, options: GenerateOptions | None = None) -> ModelResponse:
+        return ModelResponse(content="", model=model)
+
+    async def stream(self, model: str, prompt: str, system: str | None = None, options: GenerateOptions | None = None) -> AsyncIterator[str]:
+        yield ""
+
+    async def chat(self, model: str, messages: list[dict[str, Any]], tools: list[dict[str, Any]] | None = None, options: GenerateOptions | None = None) -> ChatResponse:
+        return ChatResponse(
+            message=ChatMessage(
+                role="assistant",
+                content="Here is the calibration script:\n```python\nimport numpy as np\nprint('calibrated')\n```",
+            ),
+            model=model,
+        )
+
+    async def stream_chat(self, model: str, messages: list[dict[str, Any]], tools: list[dict[str, Any]] | None = None, options: GenerateOptions | None = None) -> AsyncIterator[dict[str, Any]]:
+        yield {}
+
+    async def embed(self, model: str, texts: list[str]) -> EmbeddingResponse:
+        return EmbeddingResponse(embeddings=[[0.1] * 768], model=model, dimension=768)
+
+    async def list_models(self) -> list[str]:
+        return ["qwen2.5:3b"]
+
+    async def health_check(self) -> bool:
+        return True
+
+
+@pytest.mark.asyncio
+async def test_graph_tool_retry_exhaustion_bounds():
+    """
+    CRITICAL BOUNDS TEST:
+    Verifies that when a model stubbornly returns prose and ignores retry directives,
+    the StateGraph halts exactly after 2 retries without hanging or infinite loop.
+    """
+    provider = MockStubbornProseProvider()
+    builder = AgentGraphBuilder(provider=provider)
+    graph = builder.build()
+
+    state: WorkbenchState = {
+        "session_id": "test_retry_exhaustion",
+        "user_id": "00000000-0000-0000-0000-000000000001",
+        "user_role": "analyst",
+        "username": "analyst_user",
+        "prompt": "Perform linear calibration regression on sensor calibration data",
+        "max_iterations": 8,
+        "iteration_count": 0,
+        "status": "initialized",
+    }
+
+    final_state = await graph.ainvoke(state)
+    assert final_state["status"] == "completed"
+    assert final_state["tool_retry_count"] == 2
+    # Verify iteration count bounded properly
+    assert final_state["iteration_count"] <= 8
+
+
+@pytest.mark.asyncio
+async def test_graph_tool_argument_validation_failure():
+    """
+    SECURITY & VALIDATION TEST:
+    Verifies that malformed or empty tool parameters (e.g. empty code string)
+    fail validation cleanly at tool_node before execution.
+    """
+    class MockBadArgCaller(BaseModelProvider):
+        def __init__(self) -> None:
+            self.turn = 0
+
+        async def generate(self, model: str, prompt: str, system: str | None = None, options: GenerateOptions | None = None) -> ModelResponse:
+            return ModelResponse(content="", model=model)
+
+        async def stream(self, model: str, prompt: str, system: str | None = None, options: GenerateOptions | None = None) -> AsyncIterator[str]:
+            yield ""
+
+        async def chat(self, model: str, messages: list[dict[str, Any]], tools: list[dict[str, Any]] | None = None, options: GenerateOptions | None = None) -> ChatResponse:
+            self.turn += 1
+            if self.turn > 1:
+                return ChatResponse(message=ChatMessage(role="assistant", content="Handled invalid argument."), model=model)
+            return ChatResponse(
+                message=ChatMessage(
+                    role="assistant",
+                    content="",
+                    tool_calls=[{"id": "call_bad_args", "function": {"name": "code_sandbox", "arguments": {"code": "   "}}}],
+                ),
+                model=model,
+            )
+
+        async def stream_chat(self, model: str, messages: list[dict[str, Any]], tools: list[dict[str, Any]] | None = None, options: GenerateOptions | None = None) -> AsyncIterator[dict[str, Any]]:
+            yield {}
+
+        async def embed(self, model: str, texts: list[str]) -> EmbeddingResponse:
+            return EmbeddingResponse(embeddings=[[0.1] * 768], model=model, dimension=768)
+
+        async def list_models(self) -> list[str]:
+            return ["qwen2.5:3b"]
+
+        async def health_check(self) -> bool:
+            return True
+
+    builder = AgentGraphBuilder(provider=MockBadArgCaller())
+    graph = builder.build()
+
+    state: WorkbenchState = {
+        "session_id": "test_bad_arg_validation",
+        "user_id": "00000000-0000-0000-0000-000000000001",
+        "user_role": "admin",  # admin has code_sandbox permission
+        "username": "admin_user",
+        "prompt": "Run code in sandbox",
+        "max_iterations": 5,
+        "iteration_count": 0,
+        "status": "initialized",
+    }
+
+    final_state = await graph.ainvoke(state)
+    assert len(final_state["tool_results"]) == 1
+    res = final_state["tool_results"][0]
+    assert res["status"] == "error"
+    assert "Validation failed" in str(res["error"])
+    assert res["metadata"].get("validation_failed") is True
+
