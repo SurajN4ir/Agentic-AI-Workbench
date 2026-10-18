@@ -27,21 +27,13 @@ from app.agent.prompts import ROLE_SYSTEM_PROMPTS
 from app.agent.state import WorkbenchState
 from app.identity.models import User
 from app.models.base import BaseModelProvider
-from app.models.registry import get_default_provider
+from app.models.registry import get_default_provider, get_model_for_role
 from app.routing.schemas import FileMetadata
 from app.routing.service import TaskRouter
 from app.tools.interface import ToolStatus
 from app.tools.registry import ToolRegistry, get_tool_registry
 
 logger = logging.getLogger("sovereign.agent.graph")
-
-# Default model assignments
-_DEFAULT_ROLE_MODELS = {
-    "reasoning": "qwen2.5:3b",
-    "coding": "qwen2.5-coder:3b",
-    "vision": "qwen2.5-vl:3b",
-    "ocr": "qwen2.5-vl:3b",
-}
 
 
 class AgentGraphBuilder:
@@ -75,7 +67,7 @@ class AgentGraphBuilder:
 
 
         role = route_decision.role
-        model_tag = _DEFAULT_ROLE_MODELS.get(role, "qwen2.5:3b")
+        model_tag = state.get("model_tag") or get_model_for_role(role, default="llama3.2:latest")
 
         sys_prompt = ROLE_SYSTEM_PROMPTS.get(role, ROLE_SYSTEM_PROMPTS["reasoning"])
 

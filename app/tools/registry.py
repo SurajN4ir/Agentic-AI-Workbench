@@ -315,22 +315,20 @@ class ToolRegistry:
         collection_id = str(input_data.get("collection_id", "default"))
 
         if db is None:
-            return ToolResult(
-                status=ToolStatus.ERROR,
-                error="Database session unavailable for knowledge search.",
-            )
+            from app.database import AsyncSessionLocal
+            async with AsyncSessionLocal() as session:
+                return await self._execute_rag_search(input_data, session_id, db=session)
 
         from app.knowledge.service import KnowledgeService
 
         service = KnowledgeService()
         results = await service.search(db=db, query=query, top_k=top_k, collection_id=collection_id)
 
-
         if not results:
             return ToolResult(
                 status=ToolStatus.SUCCESS,
                 data={"results": [], "summary": "No matching knowledge base documents found."},
-                output="No matching knowledge base documents found for query.",
+                output="No matching knowledge base documents found for query. Insufficient internal evidence.",
             )
 
         formatted_chunks = []

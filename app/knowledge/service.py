@@ -20,7 +20,7 @@ from app.knowledge.chunking import chunk_sections
 from app.knowledge.models import DocumentChunk, KnowledgeDocument
 from app.knowledge.parsers.unified import get_unified_parser
 from app.models.base import BaseModelProvider
-from app.models.registry import get_default_provider
+from app.models.registry import get_default_provider, get_model_for_role
 
 logger = logging.getLogger("sovereign.knowledge.service")
 
@@ -48,7 +48,7 @@ class KnowledgeService:
 
     def __init__(self, provider: BaseModelProvider | None = None) -> None:
         self.provider = provider or get_default_provider()
-        self.embedding_model = "nomic-embed-text"
+        self.embedding_model = get_model_for_role("embedding", default="all-minilm:l6-v2")
 
     async def ingest_file(
         self,
@@ -109,8 +109,9 @@ class KnowledgeService:
         await db.flush()
 
         # 6. Persist Document Chunks with Vectors
+        dim = len(embeddings[0]) if embeddings else 384
         for idx, draft in enumerate(draft_chunks):
-            vec = embeddings[idx] if idx < len(embeddings) else [0.0] * 768
+            vec = embeddings[idx] if idx < len(embeddings) else [0.0] * dim
             chunk = DocumentChunk(
                 id=uuid.uuid4(),
                 document_id=doc.id,

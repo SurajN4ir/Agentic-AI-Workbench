@@ -32,7 +32,7 @@ class TestModelRegistry:
 
     def test_get_model_for_role_known_and_unknown(self) -> None:
         coding_model = get_model_for_role("coding")
-        assert "coder" in coding_model or "qwen" in coding_model
+        assert any(m in coding_model for m in ["llama", "coder", "qwen"])
 
         # Unknown role should fall back to default or reasoning model
         fallback = get_model_for_role("unknown_role_xyz", default="fallback:latest")

@@ -38,6 +38,12 @@ ALLOWED_EXTENSIONS = {
     ".sql",
     ".yaml",
     ".yml",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".tiff",
+    ".bmp",
+    ".webp",
 }
 
 

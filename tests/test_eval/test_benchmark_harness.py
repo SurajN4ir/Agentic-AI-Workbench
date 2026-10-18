@@ -4,19 +4,9 @@ tests/test_eval/test_benchmark_harness.py
 Unit and integration tests for the Sovereign AI Workbench evaluation harness.
 """
 
-from collections.abc import AsyncIterator
-from typing import Any
 
 import pytest
 from app.identity.models import User
-from app.models.base import BaseModelProvider
-from app.models.schemas import (
-    ChatMessage,
-    ChatResponse,
-    EmbeddingResponse,
-    GenerateOptions,
-    ModelResponse,
-)
 from eval.metrics import (
     evaluate_security_invariance,
     score_citations,

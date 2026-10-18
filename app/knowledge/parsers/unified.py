@@ -12,6 +12,7 @@ from pathlib import Path
 
 from app.knowledge.parsers.base import BaseDocumentParser, DocumentSection
 from app.knowledge.parsers.docx_parser import DocxParser
+from app.knowledge.parsers.image_parser import ImageParser
 from app.knowledge.parsers.pdf_parser import PDFParser
 from app.knowledge.parsers.spreadsheet_parser import SpreadsheetParser
 from app.knowledge.parsers.text_parser import TextParser
@@ -35,6 +36,7 @@ class UnifiedDocumentParser:
         self.pdf_parser = PDFParser()
         self.docx_parser = DocxParser()
         self.spreadsheet_parser = SpreadsheetParser()
+        self.image_parser = ImageParser()
         self.text_parser = TextParser()
 
     def parse(self, file_path: Path) -> tuple[str, list[DocumentSection]]:
@@ -56,6 +58,8 @@ class UnifiedDocumentParser:
             parser = self.docx_parser
         elif ext in {".csv", ".xlsx"}:
             parser = self.spreadsheet_parser
+        elif ext in {".png", ".jpg", ".jpeg", ".tiff", ".bmp", ".webp"}:
+            parser = self.image_parser
         else:
             parser = self.text_parser
 

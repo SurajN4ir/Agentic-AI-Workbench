@@ -22,33 +22,33 @@ CONFIG_FILE_PATH = Path(__file__).resolve().parent.parent.parent / "models_confi
 
 DEFAULT_MODELS: dict[str, dict[str, Any]] = {
     "reasoning": {
-        "tag": "qwen2.5:3b",
-        "label": "Reasoning (Qwen 2.5 3B)",
-        "context_window": 8192,
-        "supports_thinking": True,
+        "tag": "llama3.2:latest",
+        "label": "Reasoning (Llama 3.2 3B)",
+        "context_window": 131072,
+        "supports_thinking": False,
     },
     "coding": {
-        "tag": "qwen2.5-coder:3b",
-        "label": "Coding (Qwen 2.5 Coder 3B)",
-        "context_window": 8192,
+        "tag": "llama3.2:latest",
+        "label": "Coding (Llama 3.2 3B)",
+        "context_window": 131072,
         "supports_thinking": False,
     },
     "vision": {
-        "tag": "qwen2.5-vl:3b",
-        "label": "Vision (Qwen 2.5 VL 3B)",
-        "context_window": 8192,
-        "supports_thinking": False,
+        "tag": "qwen3.5:4b",
+        "label": "Vision (Qwen 3.5 4B)",
+        "context_window": 32768,
+        "supports_thinking": True,
     },
     "ocr": {
-        "tag": "qwen2.5-vl:3b",
-        "label": "OCR VLM (Qwen 2.5 VL 3B)",
-        "context_window": 8192,
-        "supports_thinking": False,
+        "tag": "qwen3.5:4b",
+        "label": "OCR VLM (Qwen 3.5 4B)",
+        "context_window": 32768,
+        "supports_thinking": True,
     },
     "embedding": {
-        "tag": "nomic-embed-text",
-        "label": "Embedding (Nomic Embed)",
-        "context_window": 2048,
+        "tag": "all-minilm:l6-v2",
+        "label": "Embedding (All-MiniLM L6-v2)",
+        "context_window": 512,
         "supports_thinking": False,
     },
 }
@@ -114,7 +114,7 @@ def get_model_for_role(role: str, default: str | None = None) -> str:
         return registry[role]
     if default:
         return default
-    return registry.get("reasoning", "qwen2.5:3b")
+    return registry.get("reasoning", "llama3.2:latest")
 
 
 def get_role_context_windows() -> dict[str, int]:

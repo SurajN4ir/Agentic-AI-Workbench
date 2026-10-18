@@ -26,7 +26,7 @@ async def test_agent_service_run_direct(db_session: AsyncSession, test_user: Use
     assert resp.response == "Direct reasoning response without tool usage."
     assert resp.iterations == 0
     assert resp.duration_ms > 0
-    assert resp.model_used == "qwen2.5:3b"
+    assert resp.model_used in ("llama3.2:latest", "qwen2.5:3b")
     assert resp.route_decision.role in ("reasoning", "coding")
 
 

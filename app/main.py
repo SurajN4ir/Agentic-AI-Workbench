@@ -26,7 +26,7 @@ from slowapi.util import get_remote_address
 from app.agent.router import router as agent_router
 from app.artifacts.router import router as artifacts_router
 from app.config import get_settings
-from app.database import check_database_health, engine
+from app.database import check_database_health, engine, init_db
 from app.identity.router import router as auth_router
 from app.knowledge.router import router as knowledge_router
 from app.routing.router import router as routing_router
@@ -53,9 +53,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Verify DB connectivity on startup — fail fast if misconfigured
     db_ok = await check_database_health()
     if not db_ok:
-        logger.error("Database health check failed on startup. Check POSTGRES_* env vars.")
-        # Allow startup to continue so Docker healthcheck can restart us,
-        # but log clearly so the operator knows.
+        logger.error("Database health check failed on startup. Check database configuration.")
+    else:
+        try:
+            await init_db()
+        except Exception as e:
+            logger.warning("Auto schema init notice: %s", e)
 
     if settings.strict_offline:
         logger.warning("STRICT_OFFLINE mode is ENABLED. All external network access is blocked.")
