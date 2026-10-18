@@ -38,6 +38,12 @@ class CaseEvaluationResult(BaseModel):
 
     case_id: str
     category: str
+    title: str = ""
+    prompt: str = ""
+    expected_role: str = ""
+    actual_role: str = ""
+    expected_tools: list[str] = Field(default_factory=list)
+    actual_tools: list[str] = Field(default_factory=list)
     passed: bool
     score: float = Field(ge=0.0, le=1.0, description="Normalized score 0.0 to 1.0")
     routing_passed: bool
@@ -48,12 +54,16 @@ class CaseEvaluationResult(BaseModel):
     duration_ms: float
     output_preview: str = ""
     errors: list[str] = Field(default_factory=list)
+    failure_diagnosis: str = ""
 
 
 class EvaluationReport(BaseModel):
     """Comprehensive summary of an entire benchmark evaluation run."""
 
     timestamp: str
+    benchmark_version: str = "industrial_benchmark_v1"
+    model_name: str = "llama3.2:latest"
+    provider_type: str = "ollama"
     total_cases: int
     passed_cases: int
     failed_cases: int

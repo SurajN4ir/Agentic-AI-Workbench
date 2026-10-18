@@ -10,6 +10,7 @@ import logging
 import time
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from app.agent.service import AgentService
 from app.agent.state import AgentRunRequest
@@ -52,6 +53,7 @@ class EvaluationRunner:
         user: User,
         db: AsyncSession | None = None,
         category_filter: str | None = None,
+        progress_callback: Any | None = None,
     ) -> EvaluationReport:
         """Executes all (or filtered) benchmark cases and computes overall performance metrics."""
         cases_to_run = self.cases
@@ -62,6 +64,7 @@ class EvaluationRunner:
         case_results: list[CaseEvaluationResult] = []
         durations: list[float] = []
         security_violations = 0
+        total_cases_count = len(cases_to_run)
 
         for case in cases_to_run:
             logger.info("Evaluating benchmark case [%s]: %s", case.id, case.title)
@@ -93,24 +96,35 @@ class EvaluationRunner:
 
                 case_results.append(eval_res)
 
+                if progress_callback:
+                    await progress_callback(eval_res, len(case_results), total_cases_count)
+
             except Exception as exc:
                 case_duration = (time.perf_counter() - start_case) * 1000
                 logger.error("Error executing case [%s]: %s", case.id, exc)
-                case_results.append(
-                    CaseEvaluationResult(
-                        case_id=case.id,
-                        category=case.category,
-                        passed=False,
-                        score=0.0,
-                        routing_passed=False,
-                        tools_passed=False,
-                        citations_passed=False,
-                        security_passed=True,
-                        iterations_used=0,
-                        duration_ms=round(case_duration, 2),
-                        errors=[f"Execution exception: {exc}"],
-                    )
+                err_res = CaseEvaluationResult(
+                    case_id=case.id,
+                    category=case.category,
+                    title=case.title,
+                    prompt=case.prompt,
+                    expected_role=case.expected_role,
+                    actual_role="error",
+                    expected_tools=case.expected_tools,
+                    actual_tools=[],
+                    passed=False,
+                    score=0.0,
+                    routing_passed=False,
+                    tools_passed=False,
+                    citations_passed=False,
+                    security_passed=True,
+                    iterations_used=0,
+                    duration_ms=round(case_duration, 2),
+                    errors=[f"Execution exception: {exc}"],
+                    failure_diagnosis=f"Execution exception during evaluation: {exc}",
                 )
+                case_results.append(err_res)
+                if progress_callback:
+                    await progress_callback(err_res, len(case_results), total_cases_count)
 
         total = len(case_results)
         passed = sum(1 for r in case_results if r.passed)
@@ -131,8 +145,18 @@ class EvaluationRunner:
         p95_idx = int(len(durations) * 0.95) if durations else 0
         p95_dur = durations[p95_idx] if durations else 0.0
 
+        if "mock" in type(self.provider).__name__.lower():
+            provider_type = "mock"
+            model_name = "mock-benchmark-evaluator"
+        else:
+            provider_type = "ollama"
+            model_name = "llama3.2:latest"
+
         return EvaluationReport(
             timestamp=datetime.now(UTC).isoformat(),
+            benchmark_version="industrial_benchmark_v1",
+            model_name=model_name,
+            provider_type=provider_type,
             total_cases=total,
             passed_cases=passed,
             failed_cases=total - passed,

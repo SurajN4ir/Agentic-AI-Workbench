@@ -1,5 +1,11 @@
 import type { HealthStatus, TokenResponse, User } from '../types/auth'
 import type { AgentRunResponse, ArtifactInfo, KnowledgeDoc, SearchResult } from '../types/workbench'
+import type {
+  BenchmarkCase,
+  BenchmarkProgress,
+  BenchmarkRunDetail,
+  BenchmarkRunSummary,
+} from '../types/benchmarks'
 
 class ApiClient {
   private token: string | null = null
@@ -196,6 +202,63 @@ class ApiClient {
       headers: this.getHeaders(),
     })
     if (!res.ok) return []
+    return res.json()
+  }
+
+  // --- Benchmarks & Evaluation ---
+  async getBenchmarkScenarios(): Promise<BenchmarkCase[]> {
+    const res = await fetch('/api/v1/benchmarks/scenarios', {
+      headers: this.getHeaders(),
+    })
+    if (!res.ok) throw new Error('Failed to load benchmark scenarios')
+    return res.json()
+  }
+
+  async getLatestBenchmark(): Promise<BenchmarkRunDetail> {
+    const res = await fetch('/api/v1/benchmarks/latest', {
+      headers: this.getHeaders(),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Failed to fetch latest benchmark' }))
+      throw new Error(err.detail || 'Failed to fetch latest benchmark')
+    }
+    return res.json()
+  }
+
+  async getBenchmarkHistory(): Promise<BenchmarkRunSummary[]> {
+    const res = await fetch('/api/v1/benchmarks/history', {
+      headers: this.getHeaders(),
+    })
+    if (!res.ok) throw new Error('Failed to fetch benchmark history')
+    return res.json()
+  }
+
+  async getBenchmarkRun(runId: string): Promise<BenchmarkRunDetail> {
+    const res = await fetch(`/api/v1/benchmarks/runs/${encodeURIComponent(runId)}`, {
+      headers: this.getHeaders(),
+    })
+    if (!res.ok) throw new Error('Failed to fetch benchmark run details')
+    return res.json()
+  }
+
+  async triggerBenchmark(payload: { category?: string; mock?: boolean }): Promise<{ run_id: string; status: string; message: string }> {
+    const res = await fetch('/api/v1/benchmarks/run', {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify(payload),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Failed to trigger benchmark run' }))
+      throw new Error(err.detail || 'Failed to trigger benchmark run')
+    }
+    return res.json()
+  }
+
+  async getBenchmarkProgress(runId: string): Promise<BenchmarkProgress> {
+    const res = await fetch(`/api/v1/benchmarks/progress/${encodeURIComponent(runId)}`, {
+      headers: this.getHeaders(),
+    })
+    if (!res.ok) throw new Error('Failed to fetch benchmark progress')
     return res.json()
   }
 }

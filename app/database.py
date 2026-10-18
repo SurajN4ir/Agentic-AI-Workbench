@@ -125,6 +125,7 @@ async def init_db() -> None:
     # Ensure models are imported so Base.metadata is fully populated
     import app.artifacts.models  # noqa: F401
     import app.audit.models  # noqa: F401
+    import app.benchmarks.models  # noqa: F401
     import app.identity.models  # noqa: F401
     import app.knowledge.models  # noqa: F401
 

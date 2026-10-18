@@ -21,7 +21,9 @@ import {
   Sparkles,
   ChevronDown,
   ChevronRight,
+  Award,
 } from 'lucide-react'
+import { BenchmarkDashboard } from './components/BenchmarkDashboard'
 
 
 export const App: React.FC = () => {
@@ -34,8 +36,8 @@ export const App: React.FC = () => {
   const [loginError, setLoginError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  // Active Tab: 'workbench' | 'knowledge' | 'sandbox'
-  const [activeTab, setActiveTab] = useState<'workbench' | 'knowledge' | 'sandbox'>('workbench')
+  // Active Tab: 'workbench' | 'knowledge' | 'sandbox' | 'benchmarks'
+  const [activeTab, setActiveTab] = useState<'workbench' | 'knowledge' | 'sandbox' | 'benchmarks'>('workbench')
 
   // Workbench State
   const [prompt, setPrompt] = useState('')
@@ -384,6 +386,18 @@ export const App: React.FC = () => {
               >
                 <Terminal className="h-3.5 w-3.5 text-amber-400" />
                 Tools & Math Console
+              </button>
+
+              <button
+                onClick={() => setActiveTab('benchmarks')}
+                className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  activeTab === 'benchmarks'
+                    ? 'bg-neutral-800 text-white shadow-sm'
+                    : 'text-neutral-400 hover:text-white hover:bg-neutral-900'
+                }`}
+              >
+                <Award className="h-3.5 w-3.5 text-purple-400" />
+                Benchmarks & Analytics
               </button>
             </div>
 
@@ -829,6 +843,9 @@ export const App: React.FC = () => {
               </div>
             </div>
           )}
+
+          {/* TAB 4: BENCHMARK & EVALUATION DASHBOARD */}
+          {activeTab === 'benchmarks' && <BenchmarkDashboard currentUser={currentUser} />}
         </div>
       )}
     </div>
