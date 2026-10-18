@@ -72,11 +72,17 @@ services:
       JWT_ACCESS_TOKEN_EXPIRE_SECONDS: ${JWT_ACCESS_TOKEN_EXPIRE_SECONDS:-28800}
       JWT_REFRESH_TOKEN_EXPIRE_SECONDS: ${JWT_REFRESH_TOKEN_EXPIRE_SECONDS:-604800}
       OLLAMA_BASE_URL: http://ollama:11434
-      STRICT_OFFLINE: ${STRICT_OFFLINE:-false}
+      STRICT_OFFLINE: ${STRICT_OFFLINE:-true}
       MAX_UPLOAD_SIZE_BYTES: ${MAX_UPLOAD_SIZE_BYTES:-52428800}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
       DEBUG: ${DEBUG:-false}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     depends_on:
       postgres:
         condition: service_healthy
@@ -102,7 +108,8 @@ services:
     ports:
       - "127.0.0.1:${FRONTEND_PORT:-3000}:80"     # localhost only
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
 volumes:
   postgres_data:

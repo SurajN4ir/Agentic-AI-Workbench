@@ -11,10 +11,10 @@ Integration tests for Agent API endpoints:
 from collections.abc import Generator
 
 import pytest
-from httpx import AsyncClient
-
 from app.agent.router import get_agent_service
 from app.identity.models import User
+from httpx import AsyncClient
+
 from tests.conftest import auth_headers
 from tests.test_agent.test_graph import MockMathToolProvider
 

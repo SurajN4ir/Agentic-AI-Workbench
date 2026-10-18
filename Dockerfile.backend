@@ -1,32 +1,31 @@
-"""
-Dockerfile.backend — Sovereign Workbench Backend Container
-"""
+# Dockerfile.backend — Sovereign Workbench Backend Container
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# System deps for psycopg binary, qrcode, bcrypt
+# System deps: libpq-dev for PostgreSQL, gcc for building dependencies,
+# tesseract-ocr for on-premise OCR document parsing
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq-dev gcc && \
-    rm -rf /var/lib/apt/lists/*
+    libpq-dev \
+    gcc \
+    tesseract-ocr \
+    tesseract-ocr-eng \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies first for layer caching
+# Install Python dependencies first for optimal Docker layer caching
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# Copy application and runtime configurations
 COPY app/ ./app/
 COPY alembic/ ./alembic/
 COPY alembic.ini .
 COPY models_config.json .
-COPY config_loader.py .
-COPY tool_interface.py .
-COPY tools/ ./tools/
-COPY orchestrator/ ./orchestrator/
-COPY router/ ./router/
+COPY eval/ ./eval/
 COPY scripts/ ./scripts/
 
-# Create non-root user
+# Create non-root user with dedicated workspaces
 RUN useradd -m -u 1000 sovereign && \
     mkdir -p /app/workspace /app/uploads /app/artifacts && \
     chown -R sovereign:sovereign /app
@@ -35,5 +34,8 @@ USER sovereign
 
 EXPOSE 8000
 
-# Run migrations then start server
+HEALTHCHECK --interval=10s --timeout=5s --retries=5 \
+  CMD curl -sf http://localhost:8000/health || exit 1
+
+# Run database migrations before launching uvicorn
 CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2"]
