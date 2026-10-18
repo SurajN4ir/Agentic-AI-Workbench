@@ -6,6 +6,14 @@ import type {
   BenchmarkRunDetail,
   BenchmarkRunSummary,
 } from '../types/benchmarks'
+import type {
+  ChunkDetail,
+  ChunkListResponse,
+  CollectionSummary,
+  DocumentDetail,
+  ReindexStatusResponse,
+  SearchResponse,
+} from '../types/knowledge'
 
 class ApiClient {
   private token: string | null = null
@@ -193,6 +201,162 @@ class ApiClient {
       : '/api/v1/knowledge/documents'
     const res = await fetch(url, { headers: this.getHeaders() })
     if (!res.ok) throw new Error('Failed to list documents')
+    return res.json()
+  }
+
+  // --- Knowledge Hub & Collections ---
+  async listCollections(): Promise<CollectionSummary[]> {
+    const res = await fetch('/api/v1/knowledge/collections', { headers: this.getHeaders() })
+    if (!res.ok) throw new Error('Failed to list collections')
+    return res.json()
+  }
+
+  async createCollection(name: string, description: string = ''): Promise<CollectionSummary> {
+    const res = await fetch('/api/v1/knowledge/collections', {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ name, description }),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Failed to create collection' }))
+      throw new Error(err.detail || 'Failed to create collection')
+    }
+    return res.json()
+  }
+
+  async updateCollection(name: string, newName?: string, description?: string): Promise<CollectionSummary> {
+    const res = await fetch(`/api/v1/knowledge/collections/${encodeURIComponent(name)}`, {
+      method: 'PATCH',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ name: newName || undefined, description: description !== undefined ? description : undefined }),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Failed to update collection' }))
+      throw new Error(err.detail || 'Failed to update collection')
+    }
+    return res.json()
+  }
+
+  async deleteCollection(name: string, reassignTo?: string, deleteDocuments: boolean = false): Promise<void> {
+    const params = new URLSearchParams()
+    if (reassignTo) params.append('reassign_to', reassignTo)
+    if (deleteDocuments) params.append('delete_documents', 'true')
+    const qs = params.toString() ? `?${params.toString()}` : ''
+
+    const res = await fetch(`/api/v1/knowledge/collections/${encodeURIComponent(name)}${qs}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Failed to delete collection' }))
+      throw new Error(err.detail || 'Failed to delete collection')
+    }
+  }
+
+  async listKnowledgeDocuments(collectionId?: string): Promise<DocumentDetail[]> {
+    const url = collectionId
+      ? `/api/v1/knowledge/documents?collection_id=${encodeURIComponent(collectionId)}`
+      : '/api/v1/knowledge/documents'
+    const res = await fetch(url, { headers: this.getHeaders() })
+    if (!res.ok) throw new Error('Failed to list documents')
+    return res.json()
+  }
+
+  async getKnowledgeDocument(docId: string): Promise<DocumentDetail> {
+    const res = await fetch(`/api/v1/knowledge/documents/${encodeURIComponent(docId)}`, {
+      headers: this.getHeaders(),
+    })
+    if (!res.ok) throw new Error('Failed to fetch document details')
+    return res.json()
+  }
+
+  async reassignDocument(docId: string, collectionId: string): Promise<DocumentDetail> {
+    const res = await fetch(`/api/v1/knowledge/documents/${encodeURIComponent(docId)}`, {
+      method: 'PATCH',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ collection_id: collectionId }),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Failed to reassign document' }))
+      throw new Error(err.detail || 'Failed to reassign document')
+    }
+    return res.json()
+  }
+
+  async deleteDocument(docId: string): Promise<void> {
+    const res = await fetch(`/api/v1/knowledge/documents/${encodeURIComponent(docId)}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
+    })
+    if (!res.ok) throw new Error('Failed to delete document')
+  }
+
+  async listDocumentChunks(
+    docId: string,
+    page: number = 1,
+    pageSize: number = 20,
+    sectionType?: string,
+    search?: string
+  ): Promise<ChunkListResponse> {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      page_size: pageSize.toString(),
+    })
+    if (sectionType) params.append('section_type', sectionType)
+    if (search) params.append('search', search)
+
+    const res = await fetch(`/api/v1/knowledge/documents/${encodeURIComponent(docId)}/chunks?${params.toString()}`, {
+      headers: this.getHeaders(),
+    })
+    if (!res.ok) throw new Error('Failed to fetch document chunks')
+    return res.json()
+  }
+
+  async getChunkDetail(chunkId: string): Promise<ChunkDetail> {
+    const res = await fetch(`/api/v1/knowledge/chunks/${encodeURIComponent(chunkId)}`, {
+      headers: this.getHeaders(),
+    })
+    if (!res.ok) throw new Error('Failed to fetch chunk details')
+    return res.json()
+  }
+
+  async triggerReindex(docId: string, sync: boolean = false): Promise<ReindexStatusResponse> {
+    const res = await fetch(`/api/v1/knowledge/documents/${encodeURIComponent(docId)}/reindex?sync=${sync}`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Failed to trigger re-index' }))
+      throw new Error(err.detail || 'Failed to trigger re-index')
+    }
+    return res.json()
+  }
+
+  async getReindexStatus(docId: string): Promise<ReindexStatusResponse> {
+    const res = await fetch(`/api/v1/knowledge/documents/${encodeURIComponent(docId)}/reindex-status`, {
+      headers: this.getHeaders(),
+    })
+    if (!res.ok) throw new Error('Failed to get re-index status')
+    return res.json()
+  }
+
+  async searchKnowledgeWithBreakdown(
+    query: string,
+    topK: number = 5,
+    collectionId?: string,
+    minSimilarity: number = 0.35
+  ): Promise<SearchResponse> {
+    const res = await fetch('/api/v1/knowledge/search', {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({
+        query,
+        top_k: topK,
+        collection_id: collectionId || undefined,
+        min_similarity: minSimilarity,
+      }),
+    })
+    if (!res.ok) throw new Error('Knowledge search failed')
     return res.json()
   }
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { api } from './api/client'
 import type { HealthStatus, User } from './types/auth'
-import type { ArtifactInfo, KnowledgeDoc, RouteDecision, SearchResult, ToolResultItem } from './types/workbench'
+import type { ArtifactInfo, RouteDecision, ToolResultItem } from './types/workbench'
 import {
   Shield,
   Server,
@@ -11,8 +11,6 @@ import {
   Database,
   Terminal,
   FileText,
-  Search,
-  Upload,
   Download,
   Play,
   RotateCw,
@@ -24,6 +22,7 @@ import {
   Award,
 } from 'lucide-react'
 import { BenchmarkDashboard } from './components/BenchmarkDashboard'
+import { KnowledgeHub } from './components/KnowledgeHub'
 
 
 export const App: React.FC = () => {
@@ -54,14 +53,6 @@ export const App: React.FC = () => {
   const [sessionArtifacts, setSessionArtifacts] = useState<ArtifactInfo[]>([])
   const [currentSessionId, setCurrentSessionId] = useState<string>('session_' + Math.random().toString(36).substring(2, 9))
 
-  // Knowledge Base State
-  const [documents, setDocuments] = useState<KnowledgeDoc[]>([])
-  const [uploadFile, setUploadFile] = useState<File | null>(null)
-  const [uploading, setUploading] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([])
-  const [searching, setSearching] = useState(false)
-
   // Math & Sandbox Quick Tester
   const [mathExpr, setMathExpr] = useState('integrate(x**2 * sin(x), x)')
   const [mathOperation, setMathOperation] = useState('integrate')
@@ -77,20 +68,7 @@ export const App: React.FC = () => {
     }
   }, [])
 
-  useEffect(() => {
-    if (currentUser && activeTab === 'knowledge') {
-      loadDocuments()
-    }
-  }, [currentUser, activeTab])
 
-  const loadDocuments = async () => {
-    try {
-      const docs = await api.listDocuments()
-      setDocuments(docs)
-    } catch (err) {
-      console.error('Failed to load documents:', err)
-    }
-  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -167,38 +145,7 @@ export const App: React.FC = () => {
     }
   }
 
-  // --- Document Ingestion ---
-  const handleUploadDocument = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!uploadFile) return
 
-    setUploading(true)
-    try {
-      await api.uploadDocument(uploadFile)
-      setUploadFile(null)
-      await loadDocuments()
-    } catch (err) {
-      alert(`Upload error: ${err instanceof Error ? err.message : String(err)}`)
-    } finally {
-      setUploading(false)
-    }
-  }
-
-  // --- Semantic Search ---
-  const handleSearchKnowledge = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!searchQuery.trim()) return
-
-    setSearching(true)
-    try {
-      const results = await api.searchKnowledge(searchQuery)
-      setSearchResults(results)
-    } catch (err) {
-      alert(`Search error: ${err instanceof Error ? err.message : String(err)}`)
-    } finally {
-      setSearching(false)
-    }
-  }
 
   // --- Quick Math Tester ---
   const handleRunMath = async () => {
@@ -633,129 +580,9 @@ export const App: React.FC = () => {
             </div>
           )}
 
-          {/* TAB 2: KNOWLEDGE BASE (RAG) */}
+          {/* TAB 2: KNOWLEDGE BASE & CHUNK INSPECTOR */}
           {activeTab === 'knowledge' && (
-            <div className="flex-1 flex flex-col lg:flex-row overflow-hidden p-6 gap-6">
-              {/* Document Ingestion & List */}
-              <div className="w-full lg:w-1/2 flex flex-col gap-4">
-                <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-5">
-                  <h2 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
-                    <Upload className="h-4 w-4 text-emerald-400" />
-                    Ingest Technical Document
-                  </h2>
-                  <p className="text-xs text-neutral-400 mb-4">
-                    Upload PDFs, Word docs, spreadsheets, or text files for layout-aware chunking and pgvector storage.
-                  </p>
-
-                  <form onSubmit={handleUploadDocument} className="space-y-3">
-                    <input
-                      type="file"
-                      accept=".pdf,.docx,.doc,.xlsx,.csv,.txt,.md"
-                      onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-                      className="w-full text-xs text-neutral-400 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-neutral-800 file:text-white hover:file:bg-neutral-700 cursor-pointer"
-                    />
-                    <button
-                      type="submit"
-                      disabled={uploading || !uploadFile}
-                      className="w-full rounded-lg bg-emerald-600 text-white font-medium py-2 px-4 text-xs hover:bg-emerald-500 transition-colors disabled:opacity-50"
-                    >
-                      {uploading ? 'Parsing & Embedding...' : 'Ingest Document'}
-                    </button>
-                  </form>
-                </div>
-
-                {/* Documents Table */}
-                <div className="flex-1 rounded-xl border border-neutral-800 bg-neutral-950 p-5 overflow-y-auto">
-                  <h3 className="text-xs font-semibold text-neutral-400 uppercase font-mono mb-3">
-                    Ingested Documents ({documents.length})
-                  </h3>
-                  {documents.length === 0 ? (
-                    <p className="text-xs text-neutral-500 font-mono">No documents ingested in this collection.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {documents.map((doc) => (
-                        <div
-                          key={doc.id}
-                          className="flex items-center justify-between bg-neutral-900 border border-neutral-800 rounded-lg p-3 text-xs font-mono"
-                        >
-                          <div>
-                            <span className="text-white font-semibold block">{doc.filename}</span>
-                            <span className="text-neutral-400 text-[10px]">
-                              {doc.total_chunks} chunks &middot; {Math.round(doc.file_size_bytes / 1024)} KB
-                              {doc.is_ocr_applied && ' (OCR applied)'}
-                            </span>
-                          </div>
-                          <span className="text-[10px] text-emerald-400 border border-emerald-900 bg-emerald-950/60 px-2 py-0.5 rounded">
-                            ACTIVE
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Vector Search Playground */}
-              <div className="w-full lg:w-1/2 flex flex-col gap-4">
-                <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-5">
-                  <h2 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
-                    <Search className="h-4 w-4 text-blue-400" />
-                    Semantic Vector Search Playground
-                  </h2>
-                  <p className="text-xs text-neutral-400 mb-4">
-                    Query pgvector cosine similarity space directly to inspect chunk retrieval and source citations.
-                  </p>
-
-                  <form onSubmit={handleSearchKnowledge} className="flex gap-2">
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="e.g. maximum operating pressure for crude distillation tower"
-                      className="flex-1 rounded-lg bg-neutral-900 border border-neutral-800 px-3 py-2 text-xs text-white placeholder-neutral-500 focus:border-neutral-600 focus:outline-none"
-                    />
-                    <button
-                      type="submit"
-                      disabled={searching || !searchQuery.trim()}
-                      className="rounded-lg bg-blue-600 text-white font-medium py-2 px-4 text-xs hover:bg-blue-500 transition-colors disabled:opacity-50"
-                    >
-                      {searching ? 'Searching...' : 'Search'}
-                    </button>
-                  </form>
-                </div>
-
-                {/* Search Results */}
-                <div className="flex-1 rounded-xl border border-neutral-800 bg-neutral-950 p-5 overflow-y-auto">
-                  <h3 className="text-xs font-semibold text-neutral-400 uppercase font-mono mb-3">
-                    Retrieved Results ({searchResults.length})
-                  </h3>
-                  {searchResults.length === 0 ? (
-                    <p className="text-xs text-neutral-500 font-mono">Submit a query to inspect vector citations.</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {searchResults.map((res, idx) => (
-                        <div
-                          key={idx}
-                          className="rounded-lg border border-neutral-800 bg-neutral-900 p-3 text-xs space-y-1.5"
-                        >
-                          <div className="flex items-center justify-between font-mono text-[11px]">
-                            <span className="font-semibold text-emerald-400">
-                              [Source: {res.filename} {res.page_number ? `| Page ${res.page_number}` : ''}]
-                            </span>
-                            <span className="text-blue-400">
-                              Similarity: {(res.similarity * 100).toFixed(1)}%
-                            </span>
-                          </div>
-                          <p className="text-neutral-300 whitespace-pre-wrap leading-relaxed text-xs">
-                            {res.content}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+            <KnowledgeHub currentUser={currentUser} />
           )}
 
           {/* TAB 3: TOOLS & MATH CONSOLE */}

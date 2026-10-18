@@ -131,6 +131,20 @@ async def init_db() -> None:
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # Schema evolution: dynamically add missing columns on SQLite
+        if "sqlite" in engine.url.drivername:
+            res = await conn.execute(text("PRAGMA table_info(knowledge_documents)"))
+            existing_cols = {row[1] for row in res.fetchall()}
+            if existing_cols:
+                if "status" not in existing_cols:
+                    await conn.execute(text("ALTER TABLE knowledge_documents ADD COLUMN status VARCHAR(32) DEFAULT 'indexed'"))
+                if "error_message" not in existing_cols:
+                    await conn.execute(text("ALTER TABLE knowledge_documents ADD COLUMN error_message TEXT"))
+                if "source_path" not in existing_cols:
+                    await conn.execute(text("ALTER TABLE knowledge_documents ADD COLUMN source_path VARCHAR(512)"))
+                if "updated_at" not in existing_cols:
+                    await conn.execute(text("ALTER TABLE knowledge_documents ADD COLUMN updated_at DATETIME DEFAULT '2026-01-01 00:00:00'"))
+
     logger.info("Database schema initialized on %s", engine.url.render_as_string(hide_password=True))
 
 

@@ -20,6 +20,44 @@ from app.database import Base
 EMBEDDING_DIM = 768  # Standard dimension for nomic-embed-text
 
 
+class KnowledgeCollection(Base):
+    """Represents a logical grouping of documents within the knowledge base."""
+
+    __tablename__ = "knowledge_collections"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        sa.Uuid().with_variant(PG_UUID(as_uuid=True), "postgresql"),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+    name: Mapped[str] = mapped_column(
+        sa.String(64),
+        unique=True,
+        nullable=False,
+        index=True,
+    )
+    description: Mapped[str] = mapped_column(
+        sa.String(255),
+        nullable=False,
+        default="",
+    )
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        sa.Uuid().with_variant(PG_UUID(as_uuid=True), "postgresql"),
+        nullable=True,
+        index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        sa.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        sa.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+    )
+
+
 class KnowledgeDocument(Base):
     """Represents an ingested source document (PDF, Word, spreadsheet, text)."""
 
@@ -41,12 +79,25 @@ class KnowledgeDocument(Base):
     file_size_bytes: Mapped[int] = mapped_column(sa.Integer, nullable=False, default=0)
     file_hash: Mapped[str] = mapped_column(sa.String(64), nullable=False, index=True)
     total_chunks: Mapped[int] = mapped_column(sa.Integer, nullable=False, default=0)
+    status: Mapped[str] = mapped_column(
+        sa.String(32),
+        nullable=False,
+        default="indexed",
+        server_default="indexed",
+    )
+    error_message: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
+    source_path: Mapped[str | None] = mapped_column(sa.String(512), nullable=True)
     user_id: Mapped[uuid.UUID | None] = mapped_column(
         sa.Uuid().with_variant(PG_UUID(as_uuid=True), "postgresql"),
         nullable=True,
         index=True,
     )
     created_at: Mapped[datetime] = mapped_column(
+        sa.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
         sa.DateTime(timezone=True),
         nullable=False,
         default=lambda: datetime.now(UTC),

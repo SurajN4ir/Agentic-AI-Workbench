@@ -15,10 +15,15 @@ from tests.test_knowledge.test_service_and_retrieval import MockEmbeddingProvide
 
 class TestKnowledgeEndpoints:
     @pytest.fixture(autouse=True)
-    def override_knowledge_service_provider(self) -> None:
-        """Injects deterministic mock embedding provider into singleton knowledge service."""
+    def override_knowledge_service_provider(self):
+        """Injects deterministic mock embedding provider into singleton knowledge service and restores after test."""
         service = get_knowledge_service()
+        orig_provider = service.provider
         service.provider = MockEmbeddingProvider()  # type: ignore[assignment]
+        try:
+            yield
+        finally:
+            service.provider = orig_provider
 
     @pytest.mark.asyncio
     async def test_upload_search_list_and_delete_lifecycle(
