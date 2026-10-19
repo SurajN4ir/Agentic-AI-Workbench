@@ -11,6 +11,7 @@ Comprehensive live verification of the real Sovereign Workbench system:
 7. Verifies frontend web delivery on ports 8000 and 3000.
 """
 
+import os
 import uuid
 from pathlib import Path
 
@@ -46,9 +47,23 @@ def main() -> None:
 
     # 2. Authentication
     print("\n[Step 2] Authenticating Users...")
+    env_file = Path(__file__).resolve().parent.parent / ".env"
+    env_vars = {}
+    if env_file.exists():
+        for line in env_file.read_text(encoding="utf-8").splitlines():
+            if "=" in line and not line.strip().startswith("#"):
+                k, v = line.split("=", 1)
+                env_vars[k.strip()] = v.strip()
+
+    analyst_pw = os.environ.get("SOVEREIGN_ANALYST_PASSWORD") or env_vars.get("SOVEREIGN_ANALYST_PASSWORD")
+    admin_pw = os.environ.get("SOVEREIGN_ADMIN_PASSWORD") or env_vars.get("SOVEREIGN_ADMIN_PASSWORD")
+
+    if not analyst_pw or not admin_pw:
+        raise ValueError("SOVEREIGN_ANALYST_PASSWORD and SOVEREIGN_ADMIN_PASSWORD must be configured in environment or .env.")
+
     login_payload_analyst = {
         "username": "suraj_eng",
-        "password": "Sovereign2026!AnalystKey",
+        "password": analyst_pw,
     }
     r_login = client.post(f"{BASE_URL}/api/v1/auth/login", json=login_payload_analyst)
     assert r_login.status_code == 200, f"Analyst login failed: {r_login.text}"
@@ -59,7 +74,7 @@ def main() -> None:
 
     login_payload_admin = {
         "username": "admin",
-        "password": "Sovereign2026!AdminKey",
+        "password": admin_pw,
     }
     r_admin_login = client.post(f"{BASE_URL}/api/v1/auth/login", json=login_payload_admin)
     assert r_admin_login.status_code == 200, f"Admin login failed: {r_admin_login.text}"

@@ -8,6 +8,7 @@ Records inputs, outputs, routes, models, tools, latencies, and pass/fail verdict
 """
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -278,11 +279,23 @@ def run_acceptance_suite() -> None:
         notes="Native Tesseract binary absent on host; pipeline correctly dispatches to verified local vision model engine.",
     )
 
-    # Authenticate Admin and Analyst
+    # Authenticate Admin
+    admin_pw = os.environ.get("SOVEREIGN_ADMIN_PASSWORD")
+    if not admin_pw:
+        env_file = Path(__file__).resolve().parent.parent / ".env"
+        if env_file.exists():
+            for line in env_file.read_text(encoding="utf-8").splitlines():
+                if line.startswith("SOVEREIGN_ADMIN_PASSWORD="):
+                    admin_pw = line.split("=", 1)[1].strip()
+                    break
+    if not admin_pw:
+        raise ValueError("SOVEREIGN_ADMIN_PASSWORD environment variable or .env entry required for authentication.")
+
     login_admin = client.post(
         f"{BASE_URL}/api/v1/auth/login",
-        json={"username": "admin", "password": "Sovereign2026!AdminKey"},
+        json={"username": "admin", "password": admin_pw},
     )
+    assert login_admin.status_code == 200, f"Admin login failed: {login_admin.text}"
     admin_token = login_admin.json()["access_token"]
     headers = {"Authorization": f"Bearer {admin_token}"}
 

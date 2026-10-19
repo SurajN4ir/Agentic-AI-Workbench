@@ -504,7 +504,16 @@ def execute_spreadsheet(
             stat_results = {fn: _calc_stat(nums, fn) for fn in func_list}
             data_dict = {f"{fn}_{agg_col}": round(val, 4) for fn, val in stat_results.items()}
             metrics_str = ", ".join(f"{fn} = {val}" for fn, val in stat_results.items())
-            summary = f"Overall aggregation for column '{agg_col}': {metrics_str}."
+            if nums:
+                min_v = min(nums)
+                max_v = max(nums)
+                mean_v = sum(nums) / len(nums)
+                summary = (
+                    f"Overall aggregation for column '{agg_col}': {metrics_str}. "
+                    f"Summary Statistics: Maximum = {max_v}, Average/Mean = {round(mean_v, 4)}, Minimum = {min_v}, Count = {len(nums)}."
+                )
+            else:
+                summary = f"Overall aggregation for column '{agg_col}': {metrics_str}."
             return SpreadsheetResult(
                 status=ToolStatus.SUCCESS,
                 output=summary,
