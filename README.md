@@ -242,7 +242,7 @@ Access the application in your browser at `http://127.0.0.1:8000` (production bu
 The repository undergoes exhaustive automated test verification across unit, integration, and end-to-end acceptance layers:
 
 ```powershell
-# Run full automated test suite (232 tests)
+# Run full automated test suite (233 tests)
 .venv\Scripts\pytest
 
 # Run static lint and code formatting audit
@@ -256,7 +256,7 @@ The repository undergoes exhaustive automated test verification across unit, int
 ```
 
 ### Automated Pytest Summary
-- **Passed:** 232 tests
+- **Passed:** 233 tests
 - **Skipped:** 1 test (`test_docker_sandbox` skipped when host Docker daemon is offline)
 - **Failed:** 0
 - **Duration:** 75.33 seconds
