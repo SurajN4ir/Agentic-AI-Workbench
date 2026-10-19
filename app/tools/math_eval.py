@@ -6,6 +6,7 @@ Never uses python eval() or exec().
 Provides step-by-step mathematical reasoning and LaTeX rendering.
 """
 
+import re
 from typing import Literal
 
 import sympy as sp
@@ -45,6 +46,9 @@ def evaluate_math(input_data: MathEvalInput) -> MathEvalResult:
     # Bind variables as symbols
     symbol_names = set(input_data.variables.keys()).union({"x", "y", "z", "t", "a", "b", "c", "n"})
     sympy_symbols = {s: sp.Symbol(s) for s in symbol_names}
+
+    # Automatically unwrap list arguments like max([1, 2, 3]) -> max(1, 2, 3)
+    expr_str = re.sub(r"\b(max|min|sum)\s*\(\s*\[(.*?)\]\s*\)", r"\1(\2)", expr_str, flags=re.IGNORECASE)
 
     try:
         if "=" in expr_str and not expr_str.startswith("Eq("):
