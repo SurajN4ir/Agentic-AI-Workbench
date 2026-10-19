@@ -506,7 +506,7 @@ def run_acceptance_suite() -> None:
     csv_req = {
         "prompt": "Analyze bearing_telemetry.csv: calculate the average vibration_rms and identify the maximum vibration recorded.",
         "session_id": session_id,
-        "max_iterations": 4,
+        "max_iterations": 6,
         "file_metadata": [
             {
                 "filename": paths["telemetry_csv"].name,

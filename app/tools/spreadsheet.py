@@ -262,13 +262,21 @@ def execute_spreadsheet(
 ) -> SpreadsheetResult:
     """Analyze, filter, aggregate, or compute columns on a workspace tabular dataset."""
     op = operation.lower().strip()
+    params = dict(params or {})
+
+    # Map intuitive operation aliases to standard spreadsheet operations
+    if op in ("max", "min", "mean", "avg", "average", "sum", "count", "std"):
+        if "function" not in params:
+            params["function"] = op if op not in ("avg", "average") else "mean"
+        op = "aggregate"
+    elif op in ("preview", "view", "inspect", "show"):
+        op = "read"
+
     if op not in ALLOWED_OPERATIONS:
         return SpreadsheetResult(
             status=ToolStatus.ERROR,
             error=f"Unsupported spreadsheet operation '{operation}'. Allowed: {sorted(ALLOWED_OPERATIONS)}",
         )
-
-    params = params or {}
 
     try:
         validated_path = validate_workspace_path(file_path, session_id, create_parents=False)

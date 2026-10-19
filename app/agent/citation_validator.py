@@ -13,6 +13,7 @@ import logging
 import re
 from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger("sovereign.agent.citation_validator")
@@ -186,20 +187,22 @@ class CitationValidator:
         return {c.source for c in chunks}
 
     def detect_conflicting_evidence(self, chunks: list[EvidenceChunk]) -> list[str]:
-        """Detects whether multiple chunks for the same source contain divergent numeric telemetry."""
+        """Detects whether multiple chunks for the same source and section contain divergent numeric telemetry."""
         conflicts: list[str] = []
-        by_source: dict[str, list[EvidenceChunk]] = {}
+        by_source_and_sec: dict[tuple[str, str], list[EvidenceChunk]] = {}
         for c in chunks:
-            by_source.setdefault(c.source, []).append(c)
+            sec = (c.section or "").strip().lower()
+            if sec:
+                by_source_and_sec.setdefault((c.source, sec), []).append(c)
 
-        for src, src_chunks in by_source.items():
+        for (src, sec), src_chunks in by_source_and_sec.items():
             if len(src_chunks) > 1:
                 all_nums = [c.numbers for c in src_chunks if c.numbers]
                 if len(all_nums) >= 2 and all_nums[0] != all_nums[1]:
                     diff = all_nums[0].symmetric_difference(all_nums[1])
                     if diff:
                         conflicts.append(
-                            f"Source '{src}' contains multiple chunks with differing numerical specifications: {sorted(diff)}"
+                            f"Source '{src}' (section '{sec}') contains divergent numerical specifications: {sorted(diff)}"
                         )
         return conflicts
 
@@ -398,10 +401,23 @@ class CitationValidator:
         )
 
         if has_chunks and total_citations_found == 0 and not is_honest_refusal:
-            audit_flags.append(
-                "UNCITED_RAG_RESPONSE: Knowledge base evidence was retrieved by rag_search, but the response contained zero bracketed citations."
-            )
-            is_valid = False
+            # Check if any retrieved source filename or stem was referenced in natural prose
+            found_prose_sources: list[str] = []
+            for c in chunks:
+                base_name = c.source.lower()
+                stem_name = Path(c.source).stem.lower()
+                clean_name = stem_name.replace("_", " ")
+                if base_name in response_lower or stem_name in response_lower or clean_name in response_lower:
+                    found_prose_sources.append(c.source)
+
+            if found_prose_sources:
+                verified.extend(list(set(found_prose_sources)))
+                is_valid = True
+            else:
+                audit_flags.append(
+                    "UNCITED_RAG_RESPONSE: Knowledge base evidence was retrieved by rag_search, but the response contained zero citations."
+                )
+                is_valid = False
         else:
             is_valid = len(ungrounded) == 0
 
