@@ -15,6 +15,7 @@ Enforces:
 
 import json
 import logging
+import re
 import uuid
 from pathlib import Path
 from typing import Any
@@ -583,8 +584,9 @@ class AgentGraphBuilder:
                 "status": "max_iterations_reached",
             }
 
-        # If no tool calls and response was already generated
-        if not final_resp or not final_resp.strip():
+        # If no substantive response was generated (or only raw citation tags without content)
+        substantive_text = re.sub(r"\[Source:[^\]]+\]", "", final_resp or "").strip()
+        if not substantive_text:
             thinking_trace = state.get("thinking_trace", [])
             if thinking_trace and str(thinking_trace[-1]).strip():
                 final_resp = str(thinking_trace[-1]).strip()

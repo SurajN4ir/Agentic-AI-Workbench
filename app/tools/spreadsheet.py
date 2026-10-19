@@ -284,10 +284,16 @@ def execute_spreadsheet(
         return SpreadsheetResult(status=ToolStatus.ERROR, error=f"Path validation failed: {err}")
 
     if not validated_path.exists() or not validated_path.is_file():
-        return SpreadsheetResult(
-            status=ToolStatus.ERROR,
-            error=f"Spreadsheet file '{file_path}' not found in workspace for session '{session_id}'.",
-        )
+        from app.config import get_settings
+        settings = get_settings()
+        alt_path = Path(settings.workspace_dir) / session_id / "uploads" / Path(file_path).name
+        if alt_path.exists() and alt_path.is_file():
+            validated_path = alt_path
+        else:
+            return SpreadsheetResult(
+                status=ToolStatus.ERROR,
+                error=f"Spreadsheet file '{file_path}' not found in workspace for session '{session_id}'.",
+            )
 
     try:
         columns, rows = _load_table(validated_path)
@@ -332,7 +338,7 @@ def execute_spreadsheet(
                 min_v = min(col_floats)
                 max_v = max(col_floats)
                 mean_v = sum(col_floats) / len(col_floats)
-                stat_summaries.append(f"{col}: min={min_v}, max={max_v}, mean={round(mean_v, 4)}, count={len(col_floats)}")
+                stat_summaries.append(f"{col}: average (mean) = {round(mean_v, 4)}, maximum (max) = {max_v}, minimum (min) = {min_v}, count = {len(col_floats)}")
         if stat_summaries:
             lines.append("\nSummary Statistics:\n" + "\n".join(f"- {s}" for s in stat_summaries))
 
