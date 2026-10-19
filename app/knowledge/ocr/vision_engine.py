@@ -82,7 +82,7 @@ class VisionModelOCREngine(BaseOCREngine):
                 "stream": False,
                 "options": {
                     "temperature": 0.0,
-                    "num_predict": 250,
+                    "num_predict": 1024,
                 },
             }
 

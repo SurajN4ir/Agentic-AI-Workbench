@@ -7,14 +7,12 @@ and local Ollama inference service (http://127.0.0.1:11434).
 Records inputs, outputs, routes, models, tools, latencies, and pass/fail verdicts.
 """
 
-import asyncio
-import io
 import json
-import os
 import shutil
+import subprocess
+import sys
 import time
 import uuid
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -22,9 +20,8 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import httpx
-from PIL import Image, ImageDraw, ImageFont
-
 from app.config import get_settings
+from PIL import Image, ImageDraw, ImageFont
 
 BASE_URL = "http://127.0.0.1:8000"
 OLLAMA_URL = "http://127.0.0.1:11434"
@@ -77,58 +74,65 @@ def create_test_images_and_docs(ws_session_dir: Path) -> dict[str, Path]:
     uploads_dir = ws_session_dir / "uploads"
     uploads_dir.mkdir(parents=True, exist_ok=True)
 
+    try:
+        font_large = ImageFont.truetype("arial.ttf", 24)
+        font_med = ImageFont.truetype("arial.ttf", 20)
+    except Exception:
+        font_large = ImageFont.load_default()
+        font_med = font_large
+
     # 1. Vision test image: Red circle, green rectangle, text "PRESSURE: 450 PSI"
-    img1 = Image.new("RGB", (600, 300), color=(250, 250, 250))
+    img1 = Image.new("RGB", (650, 320), color=(250, 250, 250))
     draw1 = ImageDraw.Draw(img1)
     # Draw red circle on left
     draw1.ellipse([40, 70, 180, 210], fill=(220, 40, 40), outline=(150, 0, 0), width=3)
     # Draw green rectangle on right
-    draw1.rectangle([420, 70, 560, 210], fill=(40, 180, 40), outline=(0, 120, 0), width=3)
+    draw1.rectangle([450, 70, 590, 210], fill=(40, 180, 40), outline=(0, 120, 0), width=3)
     # Draw text in center
-    draw1.text((210, 110), "GAUGE MONITOR", fill=(20, 20, 20))
-    draw1.text((210, 140), "PRESSURE: 450 PSI", fill=(0, 50, 200))
-    draw1.text((210, 170), "STATUS: NORMAL", fill=(20, 120, 20))
+    draw1.text((210, 95), "GAUGE MONITOR", font=font_large, fill=(20, 20, 20))
+    draw1.text((210, 135), "PRESSURE: 450 PSI", font=font_large, fill=(0, 50, 200))
+    draw1.text((210, 175), "STATUS: NORMAL", font=font_large, fill=(20, 120, 20))
 
     img1_path = ws_session_dir / "live_test_gauge.png"
     img1.save(img1_path)
     shutil.copy(img1_path, uploads_dir / "live_test_gauge.png")
 
-    # 2. Industrial Nameplate Image for OCR
-    img2 = Image.new("RGB", (550, 220), color=(240, 240, 240))
+    # 2. Industrial Nameplate Image for OCR with verified ground-truth values
+    img2 = Image.new("RGB", (600, 240), color=(240, 240, 240))
     draw2 = ImageDraw.Draw(img2)
-    draw2.rectangle([10, 10, 540, 210], outline=(40, 40, 40), width=4)
-    draw2.text((30, 30), "TURBINE HYDRAULIC ACTUATOR", fill=(0, 0, 0))
-    draw2.text((30, 70), "SERIAL: AGY-9921-X", fill=(0, 0, 0))
-    draw2.text((30, 110), "PRESSURE: 450 PSI", fill=(0, 0, 0))
-    draw2.text((30, 150), "MAX TEMP: 285 C", fill=(0, 0, 0))
+    draw2.rectangle([10, 10, 590, 230], outline=(40, 40, 40), width=4)
+    draw2.text((30, 25), "TURBINE HYDRAULIC ACTUATOR", font=font_large, fill=(0, 0, 0))
+    draw2.text((30, 75), "SERIAL: AGY-9921-X", font=font_large, fill=(0, 0, 0))
+    draw2.text((30, 125), "PRESSURE: 450 PSI", font=font_large, fill=(0, 0, 0))
+    draw2.text((30, 175), "MAX TEMP: 285 C", font=font_large, fill=(0, 0, 0))
 
     img2_path = ws_session_dir / "industrial_nameplate.png"
     img2.save(img2_path)
     shutil.copy(img2_path, uploads_dir / "industrial_nameplate.png")
 
     # 3. Image with dual values for Image-Plus-Calculation
-    img3 = Image.new("RGB", (550, 220), color=(255, 255, 255))
+    img3 = Image.new("RGB", (600, 240), color=(255, 255, 255))
     draw3 = ImageDraw.Draw(img3)
-    draw3.rectangle([10, 10, 540, 210], outline=(30, 70, 150), width=3)
-    draw3.text((30, 30), "DIFFERENTIAL PRESSURE MONITOR", fill=(10, 10, 10))
-    draw3.text((30, 80), "INLET PRESSURE: 125 PSI", fill=(0, 0, 180))
-    draw3.text((30, 120), "OUTLET PRESSURE: 92 PSI", fill=(0, 120, 0))
-    draw3.text((30, 160), "FILTER STAGE: #2", fill=(50, 50, 50))
+    draw3.rectangle([10, 10, 590, 230], outline=(30, 70, 150), width=3)
+    draw3.text((30, 25), "DIFFERENTIAL PRESSURE MONITOR", font=font_large, fill=(10, 10, 10))
+    draw3.text((30, 75), "INLET PRESSURE: 125 PSI", font=font_large, fill=(0, 0, 180))
+    draw3.text((30, 125), "OUTLET PRESSURE: 92 PSI", font=font_large, fill=(0, 120, 0))
+    draw3.text((30, 175), "FILTER STAGE: #2", font=font_large, fill=(50, 50, 50))
 
     img3_path = ws_session_dir / "filter_differential.png"
     img3.save(img3_path)
     shutil.copy(img3_path, uploads_dir / "filter_differential.png")
 
     # 4. Scanned PDF Document
-    pdf_img = Image.new("RGB", (650, 400), color=(255, 255, 255))
+    pdf_img = Image.new("RGB", (700, 420), color=(255, 255, 255))
     draw_pdf = ImageDraw.Draw(pdf_img)
-    draw_pdf.rectangle([15, 15, 635, 385], outline=(0, 0, 0), width=2)
-    draw_pdf.text((50, 50), "OFFICIAL HYDROSTATIC TEST CERTIFICATE", fill=(0, 0, 0))
-    draw_pdf.text((50, 100), "TEST UNIT: Cryogenic Pressure Vessel V-401", fill=(0, 0, 0))
-    draw_pdf.text((50, 150), "TEST FLUID: Demineralized Water", fill=(0, 0, 0))
-    draw_pdf.text((50, 200), "MAX DESIGN PRESSURE: 650 BAR", fill=(0, 0, 0))
-    draw_pdf.text((50, 250), "HOLD DURATION: 60 MINUTES", fill=(0, 0, 0))
-    draw_pdf.text((50, 300), "RESULT: PASSED INSPECTION", fill=(0, 140, 0))
+    draw_pdf.rectangle([15, 15, 685, 405], outline=(0, 0, 0), width=2)
+    draw_pdf.text((50, 40), "OFFICIAL HYDROSTATIC TEST CERTIFICATE", font=font_large, fill=(0, 0, 0))
+    draw_pdf.text((50, 95), "TEST UNIT: Cryogenic Pressure Vessel V-401", font=font_med, fill=(0, 0, 0))
+    draw_pdf.text((50, 145), "TEST FLUID: Demineralized Water", font=font_med, fill=(0, 0, 0))
+    draw_pdf.text((50, 195), "MAX DESIGN PRESSURE: 650 BAR", font=font_med, fill=(0, 0, 0))
+    draw_pdf.text((50, 245), "HOLD DURATION: 60 MINUTES", font=font_med, fill=(0, 0, 0))
+    draw_pdf.text((50, 295), "RESULT: PASSED INSPECTION", font=font_large, fill=(0, 140, 0))
 
     pdf_path = ws_session_dir / "scanned_test_cert.pdf"
     pdf_img.save(pdf_path, "PDF", resolution=150.0)
@@ -184,9 +188,22 @@ def run_acceptance_suite() -> None:
     # TEST 1: Git Status & Working Tree Cleanliness
     # -------------------------------------------------------------------------
     t0 = time.perf_counter()
-    status_proc = os.popen("git status --porcelain -uno").read().strip()
+    git_bin = shutil.which("git") or "git"
+    status_proc = subprocess.run(
+        [git_bin, "status", "--porcelain", "-uno"],
+        capture_output=True,
+        text=True,
+        check=False,
+    ).stdout.strip()
     lat = time.perf_counter() - t0
     git_clean = len(status_proc) == 0
+    curr_commit = subprocess.run(
+        [git_bin, "rev-parse", "--short", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=False,
+    ).stdout.strip() or "HEAD"
+    actual_msg = f"Clean working tree on commit {curr_commit}" if git_clean else f"Uncommitted tracked: {status_proc}"
     record_result(
         test_id="TEST-01",
         name="Git Working Tree Cleanliness & Baseline Commit Check",
@@ -198,7 +215,7 @@ def run_acceptance_suite() -> None:
         tools_executed=[],
         inference_type="Deterministic Git CLI",
         expected="Working tree clean; no unstaged changes overwriting existing work",
-        actual="Clean working tree on commit 5469e07" if git_clean else f"Uncommitted tracked: {status_proc}",
+        actual=actual_msg,
         status="PASS" if git_clean else "FAIL",
         latency_s=lat,
     )
@@ -350,11 +367,11 @@ def run_acceptance_suite() -> None:
     ocr_resp = ocr_data.get("response", "")
     ocr_resp_lower = ocr_resp.lower()
 
-    # Check extracted values
+    # Check extracted values strictly against verified ground truth (AND logic, no lenient OR)
     found_serial = "agy-9921-x" in ocr_resp_lower or "9921" in ocr_resp_lower
     found_pressure = "450" in ocr_resp_lower and "psi" in ocr_resp_lower
-    found_temp = "285" in ocr_resp_lower
-    ocr_pass = (ocr_route.get("role") == "ocr") and (found_serial or found_pressure or found_temp)
+    found_temp = "285" in ocr_resp_lower and "c" in ocr_resp_lower
+    ocr_pass = (ocr_route.get("role") == "ocr") and found_serial and found_pressure and found_temp
 
     record_result(
         test_id="TEST-06",
@@ -366,7 +383,7 @@ def run_acceptance_suite() -> None:
         selected_model=ocr_data.get("model_used"),
         tools_executed=ocr_tools,
         inference_type="Live OCR Pipeline (qwen3.5:4b vision engine)",
-        expected="Route=ocr, target_tools=[ocr_extract], extracted strings: SERIAL, 450 PSI, 285 C",
+        expected="Route=ocr, target_tools=[ocr_extract], extracted strings: SERIAL: AGY-9921-X, 450 PSI, 285 C",
         actual=ocr_resp,
         status="PASS" if ocr_pass else "FAIL",
         latency_s=lat,
@@ -421,9 +438,9 @@ def run_acceptance_suite() -> None:
         )
     assert r_ingest.status_code == 200, f"Document ingestion failed: {r_ingest.text}"
 
-    # Query with prompt
+    # Query with prompt requesting source citation
     doc_qa_req = {
-        "prompt": "According to the uploaded Turbine Operating Spec in the knowledge base, what is the continuous vibration alarm threshold and lubrication replacement interval?",
+        "prompt": "According to the uploaded Turbine Operating Spec in the knowledge base, what is the continuous vibration alarm threshold and lubrication replacement interval? Cite your source document using [Source: filename].",
         "session_id": session_id,
         "max_iterations": 4,
     }
@@ -435,24 +452,51 @@ def run_acceptance_suite() -> None:
     qa_resp = qa_data.get("response", "")
     qa_resp_lower = qa_resp.lower()
     found_vib = "4.5" in qa_resp_lower
-    found_hours = "4000" in qa_resp_lower or "500" in qa_resp_lower
-    doc_qa_pass = found_vib and found_hours
+    found_hours = "4000" in qa_resp_lower
+
+    # Strict grounding & citation integrity verification:
+    # 1. Must NOT falsely claim insufficient evidence when answer is provided in knowledge chunks
+    has_insufficient_contradiction = (
+        "insufficient internal evidence found" in qa_resp_lower
+        or "insufficient evidence" in qa_resp_lower
+    )
+    # 2. Must verify citations with actual citation details
+    citations_verified = qa_data.get("citations_verified") is True
+    citation_details = qa_data.get("citation_details", [])
+    verified_citations = qa_data.get("verified_citations", [])
+    ungrounded_citations = qa_data.get("ungrounded_citations", [])
+
+    has_source_citation = (
+        any("turbine_operating_spec.txt" in c.lower() for c in verified_citations)
+        or any("turbine_operating_spec.txt" in d.get("source_file", "").lower() for d in citation_details)
+        or any("turbine_operating_spec.txt" in c.lower() for c in qa_data.get("verified_citations", []))
+    )
+    no_ungrounded = len(ungrounded_citations) == 0
+
+    doc_qa_pass = (
+        found_vib
+        and found_hours
+        and (not has_insufficient_contradiction)
+        and citations_verified
+        and has_source_citation
+        and no_ungrounded
+    )
 
     record_result(
         test_id="TEST-08",
         name="Real Document Ingestion & Grounded Knowledge QA",
-        input_desc=f"{paths['spec_doc'].name} ingested into collection 'acceptance_coll'",
+        input_desc=f"{paths['spec_doc'].name} ingested into collection 'default'",
         endpoint=f"{BASE_URL}/api/v1/agent/run",
         detected_type="Document (TXT/PDF)",
         selected_route=qa_data.get("route_decision", {}).get("role"),
         selected_model=qa_data.get("model_used"),
         tools_executed=[t.get("tool_name") for t in qa_data.get("tool_results", [])],
         inference_type="Live Hybrid RAG (pgvector + BM25) + llama3.2:latest",
-        expected="Correctly cites 4.5 mm/s RMS alarm threshold and 4000 hours replacement interval",
+        expected="Correctly cites 4.5 mm/s RMS alarm threshold and 4000 hours replacement interval with verified [Source: Turbine_Operating_Spec.txt] citation",
         actual=qa_resp,
         status="PASS" if doc_qa_pass else "FAIL",
         latency_s=lat,
-        notes=f"Citations verified: {qa_data.get('citations_verified')}, details count: {len(qa_data.get('citation_details', []))}",
+        notes=f"Citations verified: {qa_data.get('citations_verified')}, details count: {len(qa_data.get('citation_details', []))}, ungrounded: {qa_data.get('ungrounded_citations', [])}",
     )
 
     # -------------------------------------------------------------------------

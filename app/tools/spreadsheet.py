@@ -339,14 +339,14 @@ def execute_spreadsheet(
         )
 
     elif op == "filter":
-        col = params.get("column")
+        filter_col = str(params.get("column") or "")
         val = params.get("value")
         raw_op = params.get("operator", "==")
 
-        if not col or col not in columns:
+        if not filter_col or filter_col not in columns:
             return SpreadsheetResult(
                 status=ToolStatus.ERROR,
-                error=f"Filter column '{col}' not found. Available columns: {columns}",
+                error=f"Filter column '{filter_col}' not found. Available columns: {columns}",
             )
 
         if raw_op not in ALLOWED_FILTER_OPERATORS:
@@ -357,7 +357,7 @@ def execute_spreadsheet(
 
         filtered: list[dict[str, Any]] = []
         for r in rows:
-            cell = r.get(col)
+            cell = r.get(filter_col)
             if cell is None or val is None:
                 continue
             matched = False
@@ -387,7 +387,7 @@ def execute_spreadsheet(
         limit = min(int(params.get("limit", 100)), 1000)
         sub = filtered[:limit]
         summary = (
-            f"Filter on '{col} {raw_op} {val}' matched {len(filtered)} rows. "
+            f"Filter on '{filter_col} {raw_op} {val}' matched {len(filtered)} rows. "
             f"Returning first {len(sub)} rows."
         )
         return SpreadsheetResult(

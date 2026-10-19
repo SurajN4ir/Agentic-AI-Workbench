@@ -139,6 +139,11 @@ class AgentService:
             for d in val_result.details
         ]
 
+        has_rag_tools = any(t.get("tool") == "rag_search" or t.get("tool_name") == "rag_search" for t in tool_results)
+        citations_verified_flag = val_result.is_valid and (
+            len(val_result.verified_citations) > 0 or not has_rag_tools
+        )
+
         # Emit audit trail event
         if db is not None:
             await emit_event(
@@ -153,7 +158,7 @@ class AgentService:
                     "tool_calls_count": len(tool_results),
                     "duration_ms": round(duration_ms, 2),
                     "role": typed_decision.role,
-                    "citations_verified": val_result.is_valid,
+                    "citations_verified": citations_verified_flag,
                     "verified_citations": val_result.verified_citations,
                     "ungrounded_citations": val_result.ungrounded_citations,
                 },
@@ -189,7 +194,7 @@ class AgentService:
             tool_results=tool_results,
             artifacts=artifacts,
             duration_ms=round(duration_ms, 2),
-            citations_verified=val_result.is_valid,
+            citations_verified=citations_verified_flag,
             verified_citations=val_result.verified_citations,
             ungrounded_citations=val_result.ungrounded_citations,
             citation_details=citation_details,

@@ -144,6 +144,7 @@ def is_model_available(model_tag: str, timeout: float = 2.0) -> bool:
     """Checks whether the given model tag is installed in the local Ollama instance."""
     try:
         import httpx
+
         from app.config import get_settings
         url = get_settings().ollama_base_url.rstrip("/")
         resp = httpx.get(f"{url}/api/tags", timeout=timeout)

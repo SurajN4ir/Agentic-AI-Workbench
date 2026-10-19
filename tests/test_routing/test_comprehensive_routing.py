@@ -18,27 +18,24 @@ Comprehensive 14-scenario test suite for Sovereign Automatic Multimodal Routing 
   Scenario 14: Failed primary model inference -> graceful fallback execution
 """
 
-import io
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from PIL import Image
-
 from app.agent.graph import AgentGraphBuilder
 from app.agent.state import WorkbenchState
 from app.identity.models import User
 from app.knowledge.ocr.base import OCRResult
 from app.models.registry import (
-    get_compatible_model_for_role,
     get_model_for_role,
     model_supports_vision,
 )
 from app.models.schemas import ChatMessage, ChatResponse
 from app.routing.schemas import FileMetadata
-from app.routing.service import TaskRouter, get_task_router
+from app.routing.service import TaskRouter
 from app.tools.interface import ToolStatus
-from app.tools.registry import ToolRegistry, get_tool_registry
+from app.tools.registry import ToolRegistry
+from PIL import Image
 
 
 @pytest.fixture

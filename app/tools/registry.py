@@ -501,8 +501,10 @@ class ToolRegistry:
     def _execute_ocr(self, input_data: dict[str, Any], session_id: str) -> ToolResult:
         """Executes OCR extraction on an image or PDF file within the session workspace."""
         from pathlib import Path
-        from PIL import Image
+
         import pypdfium2 as pdfium
+        from PIL import Image
+
         from app.knowledge.ocr.pipeline import get_ocr_pipeline
         from app.tools.interface import validate_workspace_path
 

@@ -104,6 +104,7 @@ class AgentGraphBuilder:
         if (route_decision.is_multimodal or route_decision.requires_vision) and file_metadata:
             import base64
             from pathlib import Path
+
             from app.config import get_settings
             ws_dir = Path(get_settings().workspace_dir)
 
@@ -219,6 +220,10 @@ class AgentGraphBuilder:
                 tool_calls = extracted_calls
                 # Clean content if it was purely a tool call payload
                 content = ""
+
+        # If model generated no tool calls and returned empty content but produced reasoning in thinking_content
+        if not tool_calls and (not content or not content.strip()) and chat_resp.thinking_content:
+            content = chat_resp.thinking_content.strip()
 
         # Update messages history
         assistant_msg: dict[str, Any] = {"role": "assistant", "content": content}
@@ -579,8 +584,18 @@ class AgentGraphBuilder:
             }
 
         # If no tool calls and response was already generated
-        if not final_resp:
-            final_resp = "Task processed successfully."
+        if not final_resp or not final_resp.strip():
+            thinking_trace = state.get("thinking_trace", [])
+            if thinking_trace and str(thinking_trace[-1]).strip():
+                final_resp = str(thinking_trace[-1]).strip()
+            elif tool_results:
+                summary_lines = ["Tool execution completed with the following results:"]
+                for tr in tool_results:
+                    t_name = tr.get("tool_name") or tr.get("tool") or "tool"
+                    summary_lines.append(f"- **{t_name}**: {tr.get('output') or tr.get('data') or 'Completed'}")
+                final_resp = "\n".join(summary_lines)
+            else:
+                final_resp = "Task processed successfully."
 
         return {
             "final_response": final_resp,

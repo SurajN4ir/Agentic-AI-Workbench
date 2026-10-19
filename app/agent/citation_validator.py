@@ -129,7 +129,8 @@ class CitationValidator:
                             sparse_score = float(item.get("sparse_score") or 0.0)
                             sparse_rank = int(item.get("sparse_rank") or 1)
                             rrf_score = float(item.get("rrf_score") or 0.0)
-                            meta = item.get("metadata") if isinstance(item.get("metadata"), dict) else {}
+                            raw_meta = item.get("metadata")
+                            meta: dict[str, Any] = dict(raw_meta) if isinstance(raw_meta, dict) else {}
                             if src and content:
                                 has_structured_chunks = True
                                 chunks.append(
@@ -387,7 +388,22 @@ class CitationValidator:
                     )
                 )
 
-        is_valid = len(ungrounded) == 0
+        has_chunks = len(chunks) > 0
+        response_lower = response_text.lower()
+        is_honest_refusal = (
+            "insufficient internal evidence found" in response_lower
+            or "insufficient evidence" in response_lower
+            or "could not find any relevant information" in response_lower
+            or "couldn't find any relevant information" in response_lower
+        )
+
+        if has_chunks and total_citations_found == 0 and not is_honest_refusal:
+            audit_flags.append(
+                "UNCITED_RAG_RESPONSE: Knowledge base evidence was retrieved by rag_search, but the response contained zero bracketed citations."
+            )
+            is_valid = False
+        else:
+            is_valid = len(ungrounded) == 0
 
         # Construct sanitized response with audit notices if any violations occurred
         sanitized_response = response_text

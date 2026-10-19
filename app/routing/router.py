@@ -70,7 +70,7 @@ async def route_task(
         role=decision.role,
         confidence=decision.confidence,
         method=decision.method,
-        selected_model=decision.selected_model,
+        selected_model=decision.model_tag,
         reasoning=decision.reasoning,
     )
 

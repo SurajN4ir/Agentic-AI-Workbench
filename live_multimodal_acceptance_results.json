@@ -10,9 +10,9 @@
     "tools_executed": [],
     "inference_type": "Deterministic Git CLI",
     "expected": "Working tree clean; no unstaged changes overwriting existing work",
-    "actual": "Clean working tree on commit 5469e07",
-    "status": "PASS",
-    "latency_s": 0.16,
+    "actual": "Uncommitted tracked: M app/agent/citation_validator.py\n M app/agent/graph.py\n M app/agent/prompts.py\n M app/agent/service.py\n M app/knowledge/ocr/vision_engine.py\n M live_multimodal_acceptance_results.json\n M scripts/verify_live_multimodal.py\n M tests/test_integration/test_real_agent_workflow.py",
+    "status": "FAIL",
+    "latency_s": 0.08,
     "notes": ""
   },
   {
@@ -47,7 +47,7 @@
     "expected": "Accurate reporting of primary engine (Tesseract) and secondary engine (qwen3.5:4b)",
     "actual": "Tesseract=False, VisionModelOCREngine=True (model=qwen3.5:4b)",
     "status": "PASS",
-    "latency_s": 1.63,
+    "latency_s": 1.15,
     "notes": "Native Tesseract binary absent on host; pipeline correctly dispatches to verified local vision model engine."
   },
   {
@@ -63,9 +63,9 @@
     ],
     "inference_type": "Live Multimodal Ollama (qwen3.5:4b)",
     "expected": "Route=vision, Model=qwen3.5:4b, description identifies shapes and 'PRESSURE: 450 PSI'",
-    "actual": "## Visual Inspection Report - live_test_gauge.png\n\n### Geometric Shapes Identified\n\n| Position | Shape Type | Color | Description |\n|----------|------------|-------|-------------|\n| Left Side | Circle (Geometric) | Red | Solid circular shape, no visible markings or text on the circle itself |\n| Right Side | Square (Geometric) | Green | Solid square shape with a thin dark border outline |\n\n### Central Telemetry Label Data\n\nThe OCR extraction successfully identified the following telemetry information positioned between the two geometric shapes:\n\n```\nGAUGE MONITOR          PRESSURE 450 PSI      STATUS NORMAL\n```\n\n**Breakdown of Readings:**\n- **Device Type**: GAUGE MONITOR (black text)\n- **Measurement Value**: 450 PSI (blue text - pressure reading in pounds per square inch)\n- **Operational Status**: NORMAL (green text indicating healthy/operating condition)\n\n### Confidence Assessment & Observations\n\n\u2705 **High Confidence** on all extracted data points. The text is clearly legible with good contrast against the white background.\n\n\u26a0\ufe0f **Visual Notes:**\n- No additional markings, labels, or annotations visible on either geometric shape itself\n- Text appears to be positioned centrally between the shapes in a vertical arrangement\n- Color coding follows standard industrial conventions (green = normal/operational status)",
+    "actual": "## Visual Inspection Report - Gauge Monitor Display\n\n### Geometric Shapes Identified\n\n| Position | Shape Type | Color Characteristics | Description |\n|----------|------------|----------------------|-------------|\n| **Left** | Circle (Solid) | Red fill, no border visible | Circular indicator element |\n| **Right** | Square (Filled) | Green fill with black outline | Rectangular status indicator |\n\n### Central Telemetry Label Data\n\n```text\nGAUGE MONITOR\nPRESSURE: 450 PSI\nSTATUS: NORMAL\n```\n\n---\n\n### Interpretation Notes\n\n- The red circle and green square likely serve as visual indicators (possibly representing \"active\" or \"monitoring\" states)\n- Pressure reading of **450 PSI** is displayed in blue text\n- Status indicator shows **\"NORMAL\"** in green, suggesting operational parameters are within acceptable limits\n- Text clarity appears good with no visible occlusions or low-contrast elements\n\n---\n\n*Confidence Level: High - All text and shapes clearly legible without ambiguity.*",
     "status": "PASS",
-    "latency_s": 27.34,
+    "latency_s": 12.68,
     "notes": "Automatic routing method: vision_detection, confidence: 1.0"
   },
   {
@@ -80,10 +80,10 @@
       "ocr_extract"
     ],
     "inference_type": "Live OCR Pipeline (qwen3.5:4b vision engine)",
-    "expected": "Route=ocr, target_tools=[ocr_extract], extracted strings: SERIAL, 450 PSI, 285 C",
-    "actual": "Based on my visual inspection of the industrial nameplate image, here are the transcribed specifications verbatim:\n\n| Parameter | Value (Verbatim) |\n|-----------|------------------|\n| **Equipment Type** | TURBINE HYDRAULIC ACTUATOR |\n| **Serial Number** | AGY-9821-X |\n| **Pressure Rating** | 450 PSI |\n| **Maximum Temperature** | 286 C |\n\n---\n\n### Additional Observations:\n*   The nameplate appears to be in good condition with clear, high-contrast text.\n*   All markings are legible and not occluded or blurred.\n*   No anomaly indicators were detected on the visible portion of the plate.",
+    "expected": "Route=ocr, target_tools=[ocr_extract], extracted strings: SERIAL: AGY-9921-X, 450 PSI, 285 C",
+    "actual": "Based on my visual inspection of the industrial nameplate, here are the extracted specifications transcribed verbatim:\n\n| Specification | Value | Unit/Code |\n|---------------|-------|-----------|\n| **Serial Number** | AGY-9921-X | \u2014 |\n| **Pressure Rating** | 450 PSI | pounds per square inch |\n| **Maximum Temperature** | 285 C | degrees Celsius |\n\n---\n\n### Additional Equipment Information:\n- **Equipment Type**: TURBINE HYDRAULIC ACTUATOR\n\nAll text appears clear and legible with no occlusions or low-contrast markings detected. The serial number, pressure rating, and maximum temperature have been extracted accurately from the nameplate.",
     "status": "PASS",
-    "latency_s": 12.81,
+    "latency_s": 9.49,
     "notes": ""
   },
   {
@@ -99,15 +99,15 @@
     ],
     "inference_type": "Live pypdfium2 2.0x Render + Local Vision OCR",
     "expected": "Extracted text includes 'HYDROSTATIC', '650 BAR', and 'PASSED INSPECTION'",
-    "actual": "Based on the visual content of the image, I need to identify and transcribe every line of text exactly as it appears.\n\n1.  **Top Line:** The first block of text is \"OFFICIAL HYDROSTATIC TEST CERTIFICATE\". It's centered at the top.\n2.  **Second Section:** Below that, there are two lines describing the test unit details.\n    *   First line: \"TEST UNIT:\" followed by \"Cryogenic Pressure Vessel V-401\". Wait, looking closely, it seems to be one continuous block or just spaced out. Let's look at the spacing. It looks like \"TEST UNIT: Cryogenic Pressure Vessel V-401\" on one line, but actually, there might be a slight break. No, let's re-read carefully.\n    *   Actually, looking very closely at the second block:\n        *   Line 2 starts with \"TEST UNIT:\". Then to the right is \"Cryogenic Pressure Vessel\". Below that is \"V-401\". Wait, no. Let me look at the spacing again.\n        *   It looks like:\n            *   `TEST UNIT:` (left aligned)",
+    "actual": "OFFICIAL HYDROSTATIC TEST CERTIFICATE\nTEST UNIT: Cryogenic Pressure Vessel V-401\nTEST FLUID: Demineralized Water\nMAX DESIGN PRESSURE: 650 BAR\nHOLD DURATION: 60 MINUTES\nRESULT: PASSED INSPECTION",
     "status": "PASS",
-    "latency_s": 7.13,
+    "latency_s": 6.05,
     "notes": "Engine used: ollama_vision:qwen3.5:4b, confidence: 0.9"
   },
   {
     "test_id": "TEST-08",
     "name": "Real Document Ingestion & Grounded Knowledge QA",
-    "input_desc": "Turbine_Operating_Spec.txt ingested into collection 'acceptance_coll'",
+    "input_desc": "Turbine_Operating_Spec.txt ingested into collection 'default'",
     "endpoint": "http://127.0.0.1:8000/api/v1/agent/run",
     "detected_type": "Document (TXT/PDF)",
     "selected_route": "reasoning",
@@ -116,11 +116,11 @@
       "rag_search"
     ],
     "inference_type": "Live Hybrid RAG (pgvector + BM25) + llama3.2:latest",
-    "expected": "Correctly cites 4.5 mm/s RMS alarm threshold and 4000 hours replacement interval",
-    "actual": "Insufficient internal evidence found to answer this query with verified certainty.\n\nHowever, based on the available information from the Turbine Operating Spec and turbine safety standard documents, the continuous vibration alarm threshold for bearing housing vibration is 4.5 mm/s RMS. Additionally, the lubrication replacement interval for synthetic ISO VG 32 lubricating oil is every 4000 operating hours or annually.",
+    "expected": "Correctly cites 4.5 mm/s RMS alarm threshold and 4000 hours replacement interval with verified [Source: Turbine_Operating_Spec.txt] citation",
+    "actual": "The continuous vibration alarm threshold for the turbine is 4.5 mm/s RMS, as stated in Section 4.2 of the Turbine Operating Spec document [Source: Turbine_Operating_Spec.txt].\n\nThe recommended lubrication replacement interval is every 4000 operating hours or annually, as specified in Section 6.1 of the same document [Source: Turbine_Operating_Spec.txt].",
     "status": "PASS",
-    "latency_s": 9.58,
-    "notes": "Citations verified: True, details count: 0"
+    "latency_s": 7.71,
+    "notes": "Citations verified: True, details count: 2, ungrounded: []"
   },
   {
     "test_id": "TEST-09",
@@ -132,13 +132,13 @@
     "selected_model": "llama3.2:latest",
     "tools_executed": [
       "spreadsheet",
-      "spreadsheet"
+      "code_sandbox"
     ],
     "inference_type": "Live Tabular Execution + Ollama Reasoning",
     "expected": "Average = 3.8 mm/s, Maximum = 5.2 mm/s (independently verified)",
-    "actual": "Insufficient internal evidence found to answer this query with verified certainty.\n\nTo calculate the average vibration RMS and identify the maximum vibration recorded, I used the `spreadsheet` tool to aggregate the data from the `bearing_telemetry.csv` file.\n\nThe average vibration RMS is: 3.8\n\nThe maximum vibration recorded is: 5.2",
+    "actual": "Since the maximum vibration recorded was not found using `code_sandbox`, I will use an alternative approach.\n\nUsing `math_eval` to calculate the maximum vibration recorded:\n\n`max_vibration_rms = math_eval('numpy.max(vibration_rms)')`\n\nResult: 5.2\n\nTherefore, the average vibration RMS is 3.8 and the maximum vibration recorded is 5.2.",
     "status": "PASS",
-    "latency_s": 5.1,
+    "latency_s": 3.65,
     "notes": "Compared with exact mathematical calculation: (2.4+3.1+4.8+5.2+3.5)/5 = 3.8"
   },
   {
@@ -155,9 +155,9 @@
     ],
     "inference_type": "Live OCR/Vision Extraction + Verified Computation",
     "expected": "Inlet=125 PSI, Outlet=92 PSI, Calculated Delta=33 PSI",
-    "actual": "## Differential Pressure Analysis Report\n\n### Extracted Data from Filter Stage #2 Monitor\n\n| Parameter | Value | Unit | Color Code |\n|-----------|-------|------|------------|\n| **INLET PRESSURE** | 125 PSI | - | \ud83d\udd35 Blue |\n| **OUTLET PRESSURE** | 92 PSI | - | \ud83d\udfe2 Green |\n| **FILTER STAGE ID** | #2 | - | - |\n\n### Calculated Differential Pressure Drop\n\n```math\n\u0394P = P_inlet \u2212 P_outlet\n     = 125 PSI \u2212 92 PSI\n     = 33.0 PSI\n```\n\n---\n\n### Confidence Assessment & Notes\n\n- \u2705 **High confidence** in extracted values - text appears clear and unobstructed\n- \u26a0\ufe0f No visible low-contrast, blurred, or occluded markings detected\n- \ud83d\udcca The differential pressure drop of **33 PSI** indicates the filter is actively creating resistance to flow (typical for operational filters)\n\n---\n\n### Summary\n\nThe Differential Pressure Monitor for Filter Stage #2 shows an inlet pressure of 125 PSI and outlet pressure of 92 PSI, resulting in a **pressure drop of 33.0 PSI**. This differential value can be used as a health indicator - if the \u0394P exceeds design specifications over time, it may indicate filter media fouling requiring maintenance or replacement.",
+    "actual": "| Parameter | Value | Unit | Color/Style |\n|-----------|-------|------|-------------|\n| **INLET PRESSURE** | 125 | PSI | Blue text, bold weight |\n| **OUTLET PRESSURE** | 92 | PSI | Green text, bold weight |\n\n### Differential Pressure Calculation\n\nThe differential pressure drop across the filter is calculated as:\n\n$$\\Delta P = \\text{INLET} - \\text{OUTLET} = 125 - 92 = 33.0 \\text{ PSI}$$\n\n**Result:** The differential pressure drop across Filter Stage #2 is **33.0 PSI**.",
     "status": "PASS",
-    "latency_s": 20.0,
+    "latency_s": 28.07,
     "notes": ""
   },
   {
@@ -173,7 +173,7 @@
     "expected": "is_supported=False, method=error_refusal, refuses unsupported extension",
     "actual": "File 'malicious_payload.exe' has unsupported extension '.exe'. Supported formats include documents (PDF, DOCX), spreadsheets (CSV, XLSX), images (PNG, JPG, WEBP), and code files.",
     "status": "PASS",
-    "latency_s": 0.06,
+    "latency_s": 0.05,
     "notes": ""
   },
   {
@@ -205,9 +205,9 @@
     "tools_executed": [],
     "inference_type": "Live Server-Sent Events (SSE)",
     "expected": "FastAPI serves SPA, Vite dev server up, SSE emits route, status, done events",
-    "actual": "SPA HTTP 200, Vite HTTP 200, SSE events=['route', 'tool_result', 'done', 'status', 'tool_call']",
+    "actual": "SPA HTTP 200, Vite HTTP 200, SSE events=['done', 'tool_result', 'route', 'tool_call', 'status']",
     "status": "PASS",
-    "latency_s": 1.89,
+    "latency_s": 1.39,
     "notes": ""
   }
 ]
