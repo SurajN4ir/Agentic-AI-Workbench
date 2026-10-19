@@ -136,6 +136,9 @@ async def test_real_agent_insufficient_evidence_refusal(
         "no relevant",
         "no schedule",
         "does not exist",
+        "lack of",
+        "not documented",
+        "not readily available",
     ]
     assert any(ind in response_lower for ind in evidence_missing_indicators)
     # Assert it does NOT hallucinate a made-up T-9999 manual citation

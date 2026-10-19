@@ -192,8 +192,7 @@ class CitationValidator:
         by_source_and_sec: dict[tuple[str, str], list[EvidenceChunk]] = {}
         for c in chunks:
             sec = (c.section or "").strip().lower()
-            if sec:
-                by_source_and_sec.setdefault((c.source, sec), []).append(c)
+            by_source_and_sec.setdefault((c.source, sec), []).append(c)
 
         for (src, sec), src_chunks in by_source_and_sec.items():
             if len(src_chunks) > 1:
@@ -201,8 +200,9 @@ class CitationValidator:
                 if len(all_nums) >= 2 and all_nums[0] != all_nums[1]:
                     diff = all_nums[0].symmetric_difference(all_nums[1])
                     if diff:
+                        sec_label = f" (section '{sec}')" if sec else ""
                         conflicts.append(
-                            f"Source '{src}' (section '{sec}') contains divergent numerical specifications: {sorted(diff)}"
+                            f"Source '{src}'{sec_label} contains divergent numerical specifications: {sorted(diff)}"
                         )
         return conflicts
 
