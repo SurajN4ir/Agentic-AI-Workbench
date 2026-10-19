@@ -10,8 +10,8 @@
     "tools_executed": [],
     "inference_type": "Deterministic Git CLI",
     "expected": "Working tree clean; no unstaged changes overwriting existing work",
-    "actual": "Uncommitted tracked: M app/agent/citation_validator.py\n M live_multimodal_acceptance_results.json\n M scripts/verify_live_multimodal.py",
-    "status": "FAIL",
+    "actual": "Clean working tree on commit 3142e1c",
+    "status": "PASS",
     "latency_s": 0.06,
     "notes": ""
   },
@@ -47,7 +47,7 @@
     "expected": "Accurate reporting of primary engine (Tesseract) and secondary engine (qwen3.5:4b)",
     "actual": "Tesseract=False, VisionModelOCREngine=True (model=qwen3.5:4b)",
     "status": "PASS",
-    "latency_s": 1.09,
+    "latency_s": 1.48,
     "notes": "Native Tesseract binary absent on host; pipeline correctly dispatches to verified local vision model engine."
   },
   {
@@ -63,9 +63,9 @@
     ],
     "inference_type": "Live Multimodal Ollama (qwen3.5:4b)",
     "expected": "Route=vision, Model=qwen3.5:4b, description identifies shapes and 'PRESSURE: 450 PSI'",
-    "actual": "## Visual Inspection Report - live_test_gauge.png\n\n### Geometric Shapes Analysis\n\n| Position | Shape Type | Color Characteristics | Notes |\n|----------|------------|----------------------|-------|\n| **Left** | Circle (solid) | Bright red fill, no visible outline or border | High contrast against white background |\n| **Right** | Square/Rectangle (hollow) | Green fill with black stroke/border | Appears to be a frame or box shape |\n\n### Central Telemetry Label - Extracted Data\n\n```\n\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502 GAUGE MONITOR       \u2502  \u2190 System identifier/title\n\u251c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2524\n\u2502 PRESSURE: 450 PSI   \u2502  \u2190 Primary measurement (blue text)\n\u251c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2524\n\u2502 STATUS: NORMAL      \u2502  \u2190 Operational state (green text)\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\n```\n\n### Key Observations & Confidence Assessment\n\n- **Text Clarity**: All telemetry labels are clearly legible with good contrast against the white background. No occlusions or blurring detected.\n  \n- **Color Coding Interpretation** (Industry Standard):\n  - Red circle typically indicates an active/alert state in industrial monitoring systems\n  - Green square/box often represents a \"normal\" or \"safe\" operational zone/status\n  \n- **Measurement Units**: Pressure is displayed as `450 PSI` (pounds per square inch)\n\n### Confidence Level: HIGH \u2705\nAll text and geometric elements are clearly visible with no low-contrast, blurred, or occluded markings detected. The image quality appears optimal for industrial monitoring display purposes.",
+    "actual": "## Visual Inspection Report: live_test_gauge.png\n\n### Geometric Shapes Identified\n\n| Position | Shape Type | Color | Description |\n|----------|------------|-------|-------------|\n| Left side | Circle (solid) | Red | Approximately circular with smooth edges, appears to be a status indicator or alert symbol |\n| Right side | Rectangle/Square (solid) | Green | Appears rectangular based on aspect ratio, likely represents normal operation or \"go\" signal |\n\n### Central Telemetry Label Data\n\nThe OCR successfully extracted the following text from the central portion of the image:\n\n```\nGAUGE MONITOR\nPRESSURE: 450 PSI\nSTATUS: NORMAL\n```\n\n**Text Color Analysis:**\n- \"GAUGE MONITOR\": Dark gray/black (title/header)\n- \"PRESSURE: 450 PSI\": Blue text indicating pressure measurement in pounds per square inch\n- \"STATUS: NORMAL\": Green text matching the right-side green shape, suggesting normal operating condition\n\n### Observations & Interpretation\n\nThe image appears to be a **gauge monitoring display** showing:\n- A high-pressure reading of 450 PSI (which may or may not be within safe limits depending on system specifications)\n- Despite potentially elevated pressure values, the status is displayed as \"NORMAL\" with green indicators\n- The red circle and green square create a visual contrast that could represent different monitoring states\n\n**Confidence Level:** High - Text was clearly legible with good contrast against white background. No occluded or blurred text detected.",
     "status": "PASS",
-    "latency_s": 13.71,
+    "latency_s": 31.57,
     "notes": "Automatic routing method: vision_detection, confidence: 1.0"
   },
   {
@@ -81,9 +81,9 @@
     ],
     "inference_type": "Live OCR Pipeline (qwen3.5:4b vision engine)",
     "expected": "Route=ocr, target_tools=[ocr_extract], extracted strings: SERIAL: AGY-9921-X, 450 PSI, 285 C",
-    "actual": "Based on my visual inspection of the industrial nameplate, here are the extracted specifications transcribed verbatim:\n\n| Parameter | Value | Unit/Code |\n|-----------|-------|-----------|\n| **Serial Number** | AGY-9921-X | \u2014 |\n| **Pressure Rating** | 450 PSI | psi (pounds per square inch) |\n| **Maximum Temperature** | 285 C | \u00b0C (degrees Celsius) |\n\n---\n\n### Additional Information Extracted:\n- **Equipment Type**: TURBINE HYDRAULIC ACTUATOR\n\n---\n\n**Confidence Assessment:** \nThe text on this nameplate is clear and well-defined with high contrast against the background. All characters are legible without occlusion or blurring, allowing for 100% confidence in these transcriptions. No low-contrast markings were detected that would require flagging as uncertain readings.",
+    "actual": "Based on the OCR analysis of the industrial nameplate image, here are the verbatim transcriptions you requested:\n\n| Parameter | Value (Verbatim) |\n|-----------|------------------|\n| **Serial Number** | AGY-9921-X |\n| **Pressure Rating** | 450 PSI |\n| **Maximum Temperature** | 285 C |\n\n---\n\n### Additional Information Extracted:\n*   **Equipment Type:** TURBINE HYDRAULIC ACTUATOR\n\n### Visual Quality Assessment:\n\u2705 All text is clearly legible with high contrast. No occlusions, blurring, or low-contrast markings were detected on the nameplate image.",
     "status": "PASS",
-    "latency_s": 13.47,
+    "latency_s": 12.96,
     "notes": ""
   },
   {
@@ -101,7 +101,7 @@
     "expected": "Extracted text includes 'HYDROSTATIC', '650 BAR', and 'PASSED INSPECTION'",
     "actual": "OFFICIAL HYDROSTATIC TEST CERTIFICATE\nTEST UNIT: Cryogenic Pressure Vessel V-401\nTEST FLUID: Demineralized Water\nMAX DESIGN PRESSURE: 650 BAR\nHOLD DURATION: 60 MINUTES\nRESULT: PASSED INSPECTION",
     "status": "PASS",
-    "latency_s": 8.09,
+    "latency_s": 9.61,
     "notes": "Engine used: ollama_vision:qwen3.5:4b, confidence: 0.9"
   },
   {
@@ -117,10 +117,10 @@
     ],
     "inference_type": "Live Hybrid RAG (pgvector + BM25) + llama3.2:latest",
     "expected": "Correctly cites 4.5 mm/s RMS alarm threshold and 4000 hours replacement interval with verified [Source: Turbine_Operating_Spec.txt] citation",
-    "actual": "The continuous vibration alarm threshold for the turbine is 4.5 mm/s RMS, as stated in Section 4.2 of the Turbine Operating Spec document [Source: Turbine_Operating_Spec.txt]. The recommended lubrication replacement interval is every 4000 operating hours or annually, as specified in Section 6.1 of the same document [Source: Turbine_Operating_Spec.txt].",
+    "actual": "According to the Turbine Operating Spec, the continuous vibration alarm threshold is 4.5 mm/s RMS.\n\nThe lubrication replacement interval for synthetic ISO VG 32 lubricating oil is as follows:\n\n- Inspection every 500 operating hours\n- Full replacement every 4000 operating hours or annually",
     "status": "PASS",
-    "latency_s": 3.67,
-    "notes": "Citations verified: True, details count: 2, ungrounded: []"
+    "latency_s": 4.66,
+    "notes": "Citations verified: True, details count: 0, ungrounded: []"
   },
   {
     "test_id": "TEST-09",
@@ -132,13 +132,13 @@
     "selected_model": "llama3.2:latest",
     "tools_executed": [
       "spreadsheet",
-      "spreadsheet"
+      "math_eval"
     ],
     "inference_type": "Live Tabular Execution + Ollama Reasoning",
     "expected": "Average = 3.8 mm/s, Maximum = 5.2 mm/s (independently verified)",
-    "actual": "Since the 'max' operation is not supported, I will use an alternative approach to find the maximum vibration recorded.\n\nOverall aggregation 'mean' for column 'vibration_rms' = 3.8.\n\nTo find the maximum vibration recorded, we can sort the data in descending order and select the first value:\n\n| vibration_rms |\n| --- |\n| 4.2 |\n| 3.9 |\n| 3.5 |\n| ... |\n| 2.1 |\n\nThe maximum vibration recorded is 4.2 mm/s RMS.",
-    "status": "FAIL",
-    "latency_s": 4.94,
+    "actual": "The average vibration RMS is 3.8, and the maximum vibration recorded is 5.2.",
+    "status": "PASS",
+    "latency_s": 4.21,
     "notes": "Compared with exact mathematical calculation: (2.4+3.1+4.8+5.2+3.5)/5 = 3.8"
   },
   {
@@ -150,14 +150,13 @@
     "selected_route": "vision (tools=['math_eval'])",
     "selected_model": "qwen3.5:4b",
     "tools_executed": [
-      "ocr_extract",
       "math_eval"
     ],
     "inference_type": "Live OCR/Vision Extraction + Verified Computation",
     "expected": "Inlet=125 PSI, Outlet=92 PSI, Calculated Delta=33 PSI",
-    "actual": "## Differential Pressure Monitor Analysis\n\n### Extracted Data from filter_differential.png\n\n| Parameter | Value | Color/Style |\n|-----------|-------|-------------|\n| **Inlet Pressure** | 125 PSI | Blue text, bold weight |\n| **Outlet Pressure** | 92 PSI | Green text, bold weight |\n| **Filter Stage** | #2 | Black/Grey text |\n\n### Calculated Differential Pressure Drop\n\nThe differential pressure drop across the filter is calculated as:\n\n$$\\Delta P = \\text{Inlet Pressure} - \\text{Outlet Pressure}$$\n\n$$\\Delta P = 125 \\text{ PSI} - 92 \\text{ PSI} = \\mathbf{33.0 \\text{ PSI}}$$\n\n### Summary\n- **Differential pressure drop:** 33.0 PSI across Filter Stage #2\n- This indicates a moderate-to-high pressure differential, which may be within normal operating parameters depending on the specific filter design specifications",
+    "actual": "## Filter Differential Pressure Analysis Report\n\n### Extracted Parameters from filter_differential.png\n\n| Parameter | Value | Unit | Color Code | Confidence Level |\n|-----------|-------|------|------------|------------------|\n| INLET PRESSURE | 125 | PSI | Blue (text) | High - Clear, unambiguous |\n| OUTLET PRESSURE | 92 | PSI | Green (text) | High - Clear, unambiguous |\n| FILTER STAGE | #2 | N/A | Black (text) | High - Clear, unambiguous |\n\n### Differential Pressure Calculation Results\n\n**Formula:** \u0394P = Inlet Pressure \u2212 Outlet Pressure  \n**Calculation:** 125 PSI \u2212 92 PSI = **33.00 PSI**\n\n| Metric | Value |\n|--------|-------|\n| Total Differential Pressure Drop | **33.00 PSI** |\n| Calculation Method | Simple subtraction (inlet - outlet) |\n| Filter Stage Affected | #2 |\n\n### Visual Inspection Notes:\n- \u2705 All text elements are clearly legible with high contrast against white background\n- \u2705 No occluded, blurred, or ambiguous markings detected\n- \u2705 Color coding is consistent and unambiguous (blue for inlet, green for outlet)\n- \u26a0\ufe0f **Note:** The image appears to be a digital display readout rather than an industrial diagram\n\n### Operational Recommendation:\nThe 33 PSI pressure drop across filter stage #2 indicates the current differential pressure. This value should be compared against the equipment's maximum allowable differential pressure rating (typically found in P&ID documentation or maintenance manuals) to determine if filter replacement is required before exceeding safety limits.",
     "status": "PASS",
-    "latency_s": 31.58,
+    "latency_s": 15.42,
     "notes": ""
   },
   {
@@ -173,7 +172,7 @@
     "expected": "is_supported=False, method=error_refusal, refuses unsupported extension",
     "actual": "File 'malicious_payload.exe' has unsupported extension '.exe'. Supported formats include documents (PDF, DOCX), spreadsheets (CSV, XLSX), images (PNG, JPG, WEBP), and code files.",
     "status": "PASS",
-    "latency_s": 0.09,
+    "latency_s": 0.04,
     "notes": ""
   },
   {
@@ -205,9 +204,9 @@
     "tools_executed": [],
     "inference_type": "Live Server-Sent Events (SSE)",
     "expected": "FastAPI serves SPA, Vite dev server up, SSE emits route, status, done events",
-    "actual": "SPA HTTP 200, Vite HTTP 200, SSE events=['status', 'route', 'tool_result', 'done', 'tool_call']",
+    "actual": "SPA HTTP 200, Vite HTTP 200, SSE events=['status', 'tool_result', 'tool_call', 'route', 'done']",
     "status": "PASS",
-    "latency_s": 1.42,
+    "latency_s": 1.75,
     "notes": ""
   }
 ]
