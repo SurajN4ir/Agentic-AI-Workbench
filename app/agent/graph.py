@@ -96,7 +96,14 @@ class AgentGraphBuilder:
         workspace_context = ""
         if file_metadata:
             names = [f.filename for f in file_metadata]
-            workspace_context = f"\n\n[Attached Files in Session Workspace]: {', '.join(names)}"
+            context_lines = [f"[Attached Files in Session Workspace]: {', '.join(names)}"]
+            csv_files = [f.filename for f in file_metadata if f.filename.lower().endswith((".csv", ".xlsx", ".xls"))]
+            if csv_files:
+                context_lines.append(
+                    f"To analyze {', '.join(csv_files)}, invoke `spreadsheet` with file_path='{csv_files[0]}' and operation='read'. "
+                    "The tool output automatically provides Summary Statistics (average/mean, maximum, minimum) for all numeric columns; state these exact values in your answer."
+                )
+            workspace_context = "\n\n" + "\n".join(context_lines)
 
         full_system_prompt = sys_prompt + workspace_context
 

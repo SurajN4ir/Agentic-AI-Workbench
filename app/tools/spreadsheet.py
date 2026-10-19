@@ -21,6 +21,7 @@ import ast
 import csv
 import math
 import operator
+import re
 from pathlib import Path
 from typing import Any, Literal
 
@@ -269,7 +270,7 @@ def execute_spreadsheet(
         if "function" not in params:
             params["function"] = op if op not in ("avg", "average") else "mean"
         op = "aggregate"
-    elif op in ("preview", "view", "inspect", "show"):
+    elif op in ("preview", "view", "inspect", "show", "read_csv", "load", "open"):
         op = "read"
 
     if op not in ALLOWED_OPERATIONS:
@@ -338,7 +339,7 @@ def execute_spreadsheet(
                 min_v = min(col_floats)
                 max_v = max(col_floats)
                 mean_v = sum(col_floats) / len(col_floats)
-                stat_summaries.append(f"{col}: average (mean) = {round(mean_v, 4)}, maximum (max) = {max_v}, minimum (min) = {min_v}, count = {len(col_floats)}")
+                stat_summaries.append(f"Column '{col}': Maximum Value = {max_v}, Average Value = {round(mean_v, 4)}, Minimum Value = {min_v}")
         if stat_summaries:
             lines.append("\nSummary Statistics:\n" + "\n".join(f"- {s}" for s in stat_summaries))
 
@@ -416,13 +417,26 @@ def execute_spreadsheet(
     elif op == "aggregate":
         group_by = params.get("group_by")
         agg_col = params.get("column")
-        agg_func = str(params.get("function", "sum")).lower()
+        raw_func = params.get("function", "sum")
+        if isinstance(raw_func, list):
+            func_list = [str(f).lower().replace("avg", "mean").replace("average", "mean").strip() for f in raw_func]
+        elif isinstance(raw_func, str) and ("," in raw_func or " " in raw_func):
+            func_list = [f.strip().lower().replace("avg", "mean").replace("average", "mean") for f in re.split(r"[,;\s]+", raw_func) if f.strip()]
+        else:
+            func_list = [str(raw_func).lower().replace("avg", "mean").replace("average", "mean").strip()]
 
-        if agg_func not in ALLOWED_AGG_FUNCTIONS:
-            return SpreadsheetResult(
-                status=ToolStatus.ERROR,
-                error=f"Unsupported aggregation function '{agg_func}'. Allowed: {sorted(ALLOWED_AGG_FUNCTIONS)}",
-            )
+        for fn in func_list:
+            if fn not in ALLOWED_AGG_FUNCTIONS:
+                return SpreadsheetResult(
+                    status=ToolStatus.ERROR,
+                    error=f"Unsupported aggregation function '{fn}'. Allowed: {sorted(ALLOWED_AGG_FUNCTIONS)}",
+                )
+
+        if not agg_col or agg_col not in columns:
+            for col in columns:
+                if col in params or col.lower() in str(params).lower():
+                    agg_col = col
+                    break
 
         if not agg_col or agg_col not in columns:
             return SpreadsheetResult(
@@ -463,16 +477,19 @@ def execute_spreadsheet(
 
             agg_rows = []
             for g_val, num_vals in groups.items():
-                stat_val = _calc_stat(num_vals, agg_func)
-                agg_rows.append({group_by: g_val, f"{agg_func}_{agg_col}": round(stat_val, 4)})
+                row_dict: dict[str, Any] = {group_by: g_val}
+                for fn in func_list:
+                    stat_val = _calc_stat(num_vals, fn)
+                    row_dict[f"{fn}_{agg_col}"] = round(stat_val, 4)
+                agg_rows.append(row_dict)
 
-            summary = f"Aggregated '{agg_col}' ({agg_func}) grouped by '{group_by}' ({len(agg_rows)} groups)."
+            summary = f"Aggregated '{agg_col}' ({', '.join(func_list)}) grouped by '{group_by}' ({len(agg_rows)} groups)."
             return SpreadsheetResult(
                 status=ToolStatus.SUCCESS,
                 output=summary,
                 data=agg_rows,
                 summary=summary,
-                columns=[group_by, f"{agg_func}_{agg_col}"],
+                columns=[group_by] + [f"{fn}_{agg_col}" for fn in func_list],
                 total_rows=len(agg_rows),
             )
         else:
@@ -484,15 +501,16 @@ def execute_spreadsheet(
                         nums.append(float(val))
                     except (ValueError, TypeError):
                         pass
-            total = _calc_stat(nums, agg_func)
-            data = [{f"{agg_func}_{agg_col}": round(total, 4)}]
-            summary = f"Overall aggregation '{agg_func}' for column '{agg_col}' = {total}."
+            stat_results = {fn: _calc_stat(nums, fn) for fn in func_list}
+            data_dict = {f"{fn}_{agg_col}": round(val, 4) for fn, val in stat_results.items()}
+            metrics_str = ", ".join(f"{fn} = {val}" for fn, val in stat_results.items())
+            summary = f"Overall aggregation for column '{agg_col}': {metrics_str}."
             return SpreadsheetResult(
                 status=ToolStatus.SUCCESS,
                 output=summary,
-                data=data,
+                data=[data_dict],
                 summary=summary,
-                columns=[f"{agg_func}_{agg_col}"],
+                columns=list(data_dict.keys()),
                 total_rows=total_rows,
             )
 
