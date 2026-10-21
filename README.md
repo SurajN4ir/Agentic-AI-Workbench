@@ -18,7 +18,7 @@
 
 Confidential industrial environments—such as energy refineries, power utilities, aerospace manufacturing plants, and defense infrastructure—routinely handle sensitive telemetry, proprietary process flow diagrams (PFDs), pipeline and instrumentation diagrams (P&IDs), and operational specifications. Modern cloud-hosted AI APIs (such as OpenAI GPT-4 or Anthropic Claude) present severe regulatory, sovereignty, and data-leakage risks when processing confidential engineering assets.
 
-The **Sovereign On-Premise Agentic AI Workbench** delivers an air-gapped, zero-leakage, open-weight agentic platform engineered specifically for industrial engineering workflows. It pairs local multimodal large language models (LLMs) with a deterministic tool execution suite, LangGraph state machine orchestration, hybrid dense/sparse retrieval-augmented generation (RAG), and cryptographic citation grounding verification.
+The **Sovereign On-Premise Agentic AI Workbench** delivers an air-gapped, zero-leakage, open-weight agentic platform engineered specifically for industrial engineering workflows. It pairs local multimodal large language models (LLMs) with a deterministic tool execution suite, LangGraph state machine orchestration, hybrid dense/sparse retrieval-augmented generation (RAG), and rule-based citation grounding verification.
 
 All inference runs 100% locally on host hardware using **Ollama** with CUDA GPU acceleration, ensuring that no proprietary telemetry or sensitive documentation ever leaves the local perimeter.
 
@@ -37,10 +37,10 @@ All inference runs 100% locally on host hardware using **Ollama** with CUDA GPU 
      $$\text{RRF Score} = \sum_{m \in \{\text{dense}, \text{sparse}\}} \frac{1}{60 + \text{rank}_m}$$
    - Preserves chunk-level page numbers, document IDs, section titles, and similarity confidence scores.
 
-3. **Cryptographic Citation Grounding & Hallucination Guard:**
-   - Parses citations in LLM responses (e.g. `[Source: Turbine_Operating_Spec.txt]`).
-   - Cross-verifies extracted numerical claims (e.g. `4.5 mm/s RMS`, `4000 operating hours`) against ingested evidence chunks.
-   - Detects and flags ungrounded claims, sanitizes fabricated references, and emits audit warnings.
+3. **Rule-Based Citation Grounding & Hallucination Guard:**
+   - Parses structured citations in LLM responses (e.g. `[Source: Turbine_Operating_Spec_Verification.txt]`).
+   - Cross-verifies extracted numerical and named claims against retrieved knowledge chunks using deterministic substring and entity matching.
+   - Detects ungrounded assertions, sanitizes ungrounded citations, computes a grounding quality score, and emits audit event records (note: verification is deterministic and rule-based, not cryptographic).
 
 4. **Interactive Grounding & Knowledge Chunk Inspector:**
    - Web-based Knowledge Hub featuring document ingestion, collection grouping, and real-time chunk inspection.
@@ -50,18 +50,18 @@ All inference runs 100% locally on host hardware using **Ollama** with CUDA GPU 
    - **`math_eval`:** Deterministic AST-parsed mathematical computation engine preventing LLM mental arithmetic errors.
    - **`spreadsheet`:** High-performance tabular telemetry parser and aggregator for CSV and Excel files.
    - **`ocr_extract`:** Local optical character recognition engine with pypdfium2 PDF page rendering and 1024-token vision transcription.
-   - **`code_sandbox`:** Isolated code execution runner with Docker container isolation and process-bounded fallback.
+   - **`code_sandbox`:** Isolated code execution runner with Docker container isolation; strictly enforces a fail-closed policy (`Execution blocked (fail-closed)`) when the Docker daemon is unreachable.
    - **`doc_gen` & `file_io`:** Automated report synthesis and secure path-traversal-guarded file management.
 
 6. **Benchmark & Evaluation Analytics Dashboard:**
-   - Integrated test runner benchmarking scenarios across categories (`REASONING`, `VISION`, `OCR`, `DATA`, `ENG`).
-   - Visual analytics displaying pass rates, latency distributions, category breakdowns, and historical regression trends.
+   - Integrated test runner benchmarking scenarios across categories (`engineering_reasoning`, `symbolic_math`, `data_analysis`, `knowledge_retrieval`, `deliverable_generation`, `security_adversarial`).
+   - Visual analytics tracking scenario pass rates (100% across 15 standard scenarios achieving $\ge 0.70$ threshold), composite quality scores (0.915 baseline), latency distributions, and regression trends.
 
 7. **Sovereign Security & Air-Gapped Governance:**
-   - Strict Offline Guard blocking unexpected outbound socket connections.
+   - Strict Offline Guard: an application-level Python socket interceptor monkey-patching `socket.connect` to block non-loopback outbound traffic while allowing local Ollama and database operations. (Note: this provides runtime software-level containment, not physical hardware air-gapping).
    - Role-Based Access Control (RBAC) with three standard roles: `admin`, `engineer`, `analyst`.
    - Time-based One-Time Password (TOTP) Multi-Factor Authentication with encrypted backup codes.
-   - Append-only, tamper-evident audit logging recording all logins, tool invocations, and citation audits.
+   - Append-only relational audit logging recording all authentication events, tool invocations, and citation grounding checks in SQLite / PostgreSQL.
 
 ---
 
@@ -97,11 +97,11 @@ flowchart TD
             ToolMath["math_eval (AST Parser)"]
             ToolSheet["spreadsheet (CSV/XLSX Engine)"]
             ToolOCR["ocr_extract (pypdfium2 + Vision Engine)"]
-            ToolSandbox["code_sandbox (Docker / Bounded Subprocess)"]
+            ToolSandbox["code_sandbox (Docker / Fail-Closed Guard)"]
             ToolDoc["doc_gen & file_io (Path Traversal Guard)"]
         end
 
-        AuditDB[("Tamper-Evident Audit Log\n(SQLite / PostgreSQL)")]
+        AuditDB[("Append-Only Relational Audit Log\n(SQLite / PostgreSQL)")]
     end
 
     subgraph LocalInference["On-Premise Local Inference (Ollama 127.0.0.1:11434)"]
@@ -130,9 +130,9 @@ The sovereign architecture is tested and verified on local consumer and workstat
 | Component | Minimum Specification | Tested / Verified Configuration |
 |---|---|---|
 | **Operating System** | Windows 10/11 x64 or Ubuntu 22.04 LTS | Windows 11 Home x64 (Build 26100) |
-| **Processor** | Intel Core i5 / AMD Ryzen 5 (6+ Cores) | Intel Core i7-13620H (16 vCPUs) |
-| **System Memory** | 16 GB DDR4/DDR5 RAM | 16 GB DDR5 RAM |
-| **GPU / Accelerator** | NVIDIA GPU with 6+ GB VRAM & CUDA | NVIDIA GeForce RTX 5050 Laptop GPU (8 GB GDDR6) |
+| **Processor** | Intel Core i5 / AMD Ryzen 5 (6+ Cores) | AMD Ryzen AI 7 350 w/ Radeon 860M (8 Cores, 16 Threads) |
+| **System Memory** | 16 GB DDR4/DDR5 RAM | 24 GB LPDDR5X RAM |
+| **GPU / Accelerator** | NVIDIA GPU with 6+ GB VRAM & CUDA | NVIDIA GeForce RTX 5050 Laptop GPU (8 GB GDDR6, CUDA enabled) |
 | **Local Inference Runtime** | Ollama 0.3.0+ | Ollama 0.5.12 with CUDA GPU Offload |
 | **Python Runtime** | Python 3.11.x | Python 3.11.9 (64-bit Virtual Environment) |
 | **Node.js Runtime** | Node.js 18+ & npm 9+ | Node.js 20.15.0 & npm 10.7.0 |
@@ -154,12 +154,15 @@ ollama pull qwen3:8b
 
 In accordance with rigorous academic engineering standards, the following operational constraints are transparently documented:
 
-1. **Sandboxed Code Execution Prerequisites:**
+1. **Sandboxed Code Execution Fail-Closed Policy:**
    - Isolated container execution requires an active, accessible Docker daemon.
-   - When the host Docker daemon is stopped or unavailable, the workbench automatically and securely falls back to bounded process execution with strict timeouts and path isolation.
-2. **Optical Character Recognition Engine:**
+   - When the host Docker daemon is stopped or unavailable, the workbench enforces a strict fail-closed policy (`Execution blocked (fail-closed)`), preventing uncontained execution on the host operating system.
+2. **Optical Character Recognition Engine & Scope:**
    - While native Tesseract binaries are supported when installed on the host OS (`tesseract.exe`), they are **optional**.
-   - The workbench incorporates `VisionModelOCREngine`, which renders PDF pages at 2.0x scale using `pypdfium2` and transcribes high-resolution text, serials, and tables verbatim using `qwen3.5:4b` with a 1024-token budget. This delivers superior accuracy on noisy industrial nameplates without requiring C++ OCR binaries.
+   - The workbench incorporates `VisionModelOCREngine`, which renders PDF pages at 2.0x scale using `pypdfium2` and transcribes high-resolution text, serials, and tables verbatim using `qwen3.5:4b` with a 1024-token budget without requiring external C++ OCR binaries.
+   - *Accuracy Disclosure:* 100% text/numeric extraction has been verified against the project's synthetic benchmark test fixtures (`live_test_nameplate.png` and `scanned_test_cert.pdf`). Real-world performance on degraded physical scans depends on document DPI, lighting, and model resolution limits.
+3. **Application-Level Offline Containment:**
+   - Offline isolation is enforced via an in-process Python socket interceptor that monkey-patches `socket.connect`, permitting only loopback connections (`127.0.0.1`, `localhost`) for Ollama and database services. This provides software-level containment rather than physical or OS-level air-gapping.
 
 ---
 
@@ -269,7 +272,7 @@ The repository undergoes exhaustive automated test verification across unit, int
 
 ### Operational Hardening & Security Disclosures
 1. **Sandbox Fail-Closed Policy:** When the Docker daemon is unreachable or stopped on the host system, code execution fails closed (`Execution blocked (fail-closed)`), strictly preventing uncontained execution on the host OS.
-2. **Local Vision OCR Engine Fallback:** In air-gapped environments without native Tesseract binaries, the integrated `VisionModelOCREngine` (`qwen3.5:4b`) provides verified local OCR transcription (tested 100% accurate across noisy nameplates and certificates).
+2. **Local Vision OCR Engine Fallback:** In air-gapped environments without native Tesseract binaries, the integrated `VisionModelOCREngine` (`qwen3.5:4b`) provides verified local OCR transcription (verified 100% text and numeric extraction on synthetic benchmark test fixtures `live_test_nameplate.png` and `scanned_test_cert.pdf`).
 3. **Zero Hardcoded Secrets & Dynamic Credential Ingestion:** Administrative and user credentials are cryptographically generated, hashed with bcrypt, and loaded dynamically from `.env` or system environment variables (`SOVEREIGN_ADMIN_PASSWORD`, `SOVEREIGN_ANALYST_PASSWORD`), ensuring zero credential leakage in source tracking.
 
 
@@ -297,6 +300,14 @@ The following results were recorded by `scripts/verify_live_multimodal.py` execu
 
 *Overall Acceptance Rate: 12 / 12 (100%) Verified on On-Premise Hardware.*
 
+### Benchmark Suite Evaluation Metrics
+
+The comprehensive evaluation benchmark suite (`app/benchmark/runner.py`) evaluates 15 industrial scenarios across 6 core domains (`engineering_reasoning`, `symbolic_math`, `data_analysis`, `knowledge_retrieval`, `deliverable_generation`, `security_adversarial`):
+- **Scenario Pass Rate:** 15 / 15 (100.0%) achieving the $\ge 0.70$ acceptance threshold.
+- **Mean Composite Quality Score:** `0.915` across all scenarios (ranging from 0.70 in complex deliverable formatting to 1.00 in security adversarial refusal, math, and data analytics).
+- **Security Violations:** `0` (100% adversarial prompt injections and path traversals blocked).
+- **Latency Profile:** Mean `7.54s`, p95 `73.15s` (governed by local vision model token generation).
+
 ---
 
 ## Project Synopsis Alignment Matrix
@@ -309,12 +320,12 @@ The implementation satisfies all foundational, operational, and security require
 | **Dynamic Multimodal Routing** | Intelligent router classifying MIME, extension, and user intent | `app/routing/service.py`, `app/routing/classifier.py`, `app/routing/router.py` |
 | **LangGraph Agent Workflow** | State graph with bounded retries, tool execution, and synthesis | `app/agent/graph.py`, `app/agent/state.py`, `app/agent/service.py` |
 | **Hybrid RAG & Vector Store** | pgvector dense embeddings + BM25 sparse keyword ranking | `app/knowledge/retriever.py`, `app/knowledge/hybrid.py`, `app/knowledge/service.py` |
-| **Citation Grounding Guard** | Numerical & string verification against retrieved evidence | `app/agent/citation_validator.py`, `app/agent/prompts.py` |
+| **Citation Grounding Guard** | Rule-based numerical & string verification against retrieved evidence | `app/agent/citation_validator.py`, `app/agent/prompts.py` |
 | **Industrial Tool Suite** | Deterministic math, spreadsheet analytics, and sandboxed code | `app/tools/math_eval.py`, `app/tools/spreadsheet.py`, `app/tools/code_sandbox.py` |
 | **Vision & PDF OCR Engine** | High-resolution PDF rasterization and vision transcription | `app/knowledge/ocr/vision_engine.py`, `app/knowledge/ocr/pipeline.py` |
 | **Interactive Grounding UI** | Knowledge Hub chunk browser and citation grounding inspector | `frontend/src/pages/KnowledgeHub.tsx`, `frontend/src/pages/CitationInspector.tsx` |
 | **Evaluation Benchmark UI** | Live evaluation runner, category breakdowns, and regression charts | `frontend/src/pages/EvaluationDashboard.tsx`, `app/benchmark/runner.py` |
-| **Air-Gapped Security & RBAC** | Strict offline guard, JWT sessions, TOTP MFA, append-only audit | `app/identity/service.py`, `app/identity/totp.py`, `app/audit/service.py` |
+| **Air-Gapped Security & RBAC** | Strict socket offline guard, JWT sessions, TOTP MFA, append-only audit | `app/identity/service.py`, `app/identity/totp.py`, `app/audit/service.py` |
 
 ---
 

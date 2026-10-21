@@ -3,7 +3,7 @@ scripts/verify_real_application.py
 ==================================
 Comprehensive live verification of the real Sovereign Workbench system:
 1. Tests authentication & JWT exchange against running FastAPI backend.
-2. Ingests genuine user-supplied documents (PDF from D:\ drive).
+2. Ingests synthetic industrial specification fixture into Knowledge Hub.
 3. Executes persistent semantic RAG retrieval and verifies chunks.
 4. Executes live local Ollama inference with citation validation.
 5. Generates deliverables and performs authenticated download.
@@ -86,25 +86,29 @@ def main() -> None:
     analyst_headers = {"Authorization": f"Bearer {analyst_token}"}
     admin_headers = {"Authorization": f"Bearer {admin_token}"}
 
-    # 3. Document Ingestion with Real User PDF
-    print("\n[Step 3] Ingesting Genuine User-Supplied Document...")
-    candidate_pdfs = [
-        Path(r"D:\1784396045_6038_SURAJ_RESUME.pdf"),
-        Path(r"D:\Documents\SURAJ RESUME.pdf"),
-        Path(r"D:\eCertificate.pdf"),
-    ]
-    real_pdf = next((p for p in candidate_pdfs if p.exists()), None)
-    if not real_pdf:
-        print("  ! No external PDF found; creating a genuine industrial test document...")
-        real_pdf = Path("workspace/industrial_spec_live.txt")
-        real_pdf.write_text("Confidential Turbine Spec RS-900: Critical vibration ceiling is 4.8 mm/s.")
+    # 3. Document Ingestion with Controlled Synthetic Industrial Fixture
+    print("\n[Step 3] Ingesting Controlled Synthetic Industrial Document...")
+    fixtures_dir = Path("workspace") / "fixtures"
+    fixtures_dir.mkdir(parents=True, exist_ok=True)
+    synthetic_doc = fixtures_dir / "Turbine_Operating_Spec_Verification.txt"
+    synthetic_doc.write_text(
+        "CONFIDENTIAL INDUSTRIAL GAS TURBINE 5000 SPECIFICATION\n\n"
+        "SECTION 1: VIBRATION MONITORING\n"
+        "The continuous alarm threshold for bearing housing vibration is 4.5 mm/s RMS.\n"
+        "The emergency automatic trip threshold is 7.1 mm/s RMS.\n\n"
+        "SECTION 2: LUBRICATION INTERVALS\n"
+        "Synthetic ISO VG 32 lubricating oil must be inspected every 500 operating hours "
+        "and fully replaced every 4000 operating hours or annually.\n"
+        "Maximum allowable oil header temperature is 65 C.\n",
+        encoding="utf-8",
+    )
 
-    print(f"  Using genuine document: {real_pdf} ({real_pdf.stat().st_size} bytes)")
-    with open(real_pdf, "rb") as f:
+    print(f"  Using synthetic fixture: {synthetic_doc} ({synthetic_doc.stat().st_size} bytes)")
+    with open(synthetic_doc, "rb") as f:
         r_upload = client.post(
             f"{BASE_URL}/api/v1/knowledge/upload",
             headers=analyst_headers,
-            files={"file": (real_pdf.name, f, "application/pdf" if real_pdf.suffix == ".pdf" else "text/plain")},
+            files={"file": (synthetic_doc.name, f, "text/plain")},
             data={"collection_id": "production_live"},
         )
     assert r_upload.status_code == 200, f"Upload failed: {r_upload.text}"
@@ -114,14 +118,14 @@ def main() -> None:
     # 4. Semantic Vector Retrieval
     print("\n[Step 4] Executing Semantic Vector Search...")
     search_payload = {
-        "query": "qualifications skills engineering projects",
+        "query": "vibration alarm threshold lubrication interval operating hours",
         "collection_id": "production_live",
         "top_k": 3,
     }
     r_search = client.post(f"{BASE_URL}/api/v1/knowledge/search", headers=analyst_headers, json=search_payload)
     assert r_search.status_code == 200, f"Search failed: {r_search.text}"
     search_res = r_search.json()
-    print(f"  [OK] Retrieved {search_res['results_count']} chunks from genuine document")
+    print(f"  [OK] Retrieved {search_res['results_count']} chunks from synthetic fixture")
     for idx, c in enumerate(search_res["results"]):
         print(f"    Chunk {idx+1}: {c['filename']} (sim: {c['similarity']:.3f}) -> {c['content'][:90]}...")
 
@@ -129,7 +133,11 @@ def main() -> None:
     print("\n[Step 5] Executing Live Local Agent Task...")
     session_id = str(uuid.uuid4())
     agent_payload = {
-        "prompt": f"Search the knowledge base for details from '{real_pdf.name}' and provide a concise summary with source citations.",
+        "prompt": (
+            f"According to the uploaded specification '{synthetic_doc.name}', "
+            "what is the continuous vibration alarm threshold and lubrication replacement interval? "
+            "Cite your source document using [Source: filename]."
+        ),
         "session_id": session_id,
         "max_iterations": 4,
     }
@@ -150,13 +158,13 @@ def main() -> None:
         "session_id": session_id,
         "report_spec": {
             "title": "Industrial Ingestion & Verification Dossier",
-            "subtitle": f"Generated from {real_pdf.name}",
+            "subtitle": f"Generated from {synthetic_doc.name}",
             "author": "Suraj Engineer (Lead Analyst)",
             "filename": "live_verification_report.docx",
             "sections": [
                 {
                     "heading": "Ingestion Summary",
-                    "body": f"Document '{real_pdf.name}' was successfully ingested and indexed into collection 'production_live'.",
+                    "body": f"Document '{synthetic_doc.name}' was successfully ingested and indexed into collection 'production_live'.",
                 },
                 {
                     "headers": ["Metric", "Value", "Status"],
@@ -183,7 +191,7 @@ def main() -> None:
                     "name": "AuditMetrics",
                     "headers": ["Session_ID", "File_Name", "Chunks", "Latency_MS", "Status"],
                     "rows": [
-                        [session_id, real_pdf.name, upload_data["total_chunks"], agent_res["duration_ms"], "PASSED"]
+                        [session_id, synthetic_doc.name, upload_data["total_chunks"], agent_res["duration_ms"], "PASSED"]
                     ],
                 }
             ],

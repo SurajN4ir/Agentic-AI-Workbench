@@ -7,11 +7,13 @@ RBAC tool authorization, and persistent storage retention.
 
 import uuid
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from app.audit.models import AuditEvent
 from app.identity.models import User
 from app.network.offline_guard import OfflineViolationError, _BlockingHandler, _is_allowed_host
+from app.sandbox.docker_sandbox import DockerSandbox
 from app.tools.file_io import execute_file_io
 from app.tools.interface import ToolStatus
 from app.tools.registry import get_tool_registry
@@ -117,13 +119,14 @@ async def test_code_sandbox_fail_closed_and_audit(db_session: AsyncSession) -> N
 
     malicious_code = f"import os\nwith open('{host_canary.name}', 'w') as f: f.write('BREACH')\n"
 
-    res = await registry.execute_tool(
-        name="code_sandbox",
-        input_data={"code": malicious_code},
-        user=admin_user,
-        session_id="fail_closed_audit_test",
-        db=db_session,
-    )
+    with patch.object(DockerSandbox, "_get_docker_client", return_value=None):
+        res = await registry.execute_tool(
+            name="code_sandbox",
+            input_data={"code": malicious_code},
+            user=admin_user,
+            session_id="fail_closed_audit_test",
+            db=db_session,
+        )
 
     # 1. Execution must be refused or blocked if docker is unreachable
     assert res.status == ToolStatus.ERROR
