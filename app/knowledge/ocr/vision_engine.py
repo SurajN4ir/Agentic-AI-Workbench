@@ -20,6 +20,18 @@ from app.knowledge.ocr.base import BaseOCREngine, OCRResult
 from app.models.registry import get_model_for_role
 
 logger = logging.getLogger("sovereign.knowledge.ocr.vision")
+SMALL_IMAGE_UPSCALE_MAX_DIM = 600
+SMALL_IMAGE_UPSCALE_FACTOR = 2
+
+
+def preprocess_small_ocr_image(image: Image.Image) -> Image.Image:
+    """Upscale low-resolution OCR inputs while leaving larger layouts untouched."""
+    if max(image.size) > SMALL_IMAGE_UPSCALE_MAX_DIM:
+        return image
+    return image.resize(
+        (image.width * SMALL_IMAGE_UPSCALE_FACTOR, image.height * SMALL_IMAGE_UPSCALE_FACTOR),
+        Image.Resampling.LANCZOS,
+    )
 
 
 class VisionModelOCREngine(BaseOCREngine):
@@ -67,6 +79,7 @@ class VisionModelOCREngine(BaseOCREngine):
             # Convert to RGB if necessary
             if pil_img.mode not in ("RGB", "L"):
                 pil_img = pil_img.convert("RGB")
+            pil_img = preprocess_small_ocr_image(pil_img)
 
             buf = io.BytesIO()
             pil_img.save(buf, format="PNG")
@@ -74,12 +87,11 @@ class VisionModelOCREngine(BaseOCREngine):
 
             payload: dict[str, Any] = {
                 "model": self.model_tag,
-                "prompt": (
-                    "Read and transcribe all visible text, numbers, labels, and units in this image verbatim. "
-                    "Do not explain."
-                ),
+                "system": "You are an OCR engine. Output only the verbatim text found in the image. Do not explain, describe, or converse.",
+                "prompt": "Extract and transcribe all text from this image verbatim. Output ONLY the extracted text with no other words, no greetings, no descriptions.",
                 "images": [b64_image],
                 "stream": False,
+                "think": False,
                 "options": {
                     "temperature": 0.0,
                     "num_predict": 1024,
@@ -92,8 +104,6 @@ class VisionModelOCREngine(BaseOCREngine):
                 data = resp.json()
 
             extracted = data.get("response", "").strip()
-            if not extracted and data.get("thinking"):
-                extracted = data.get("thinking", "").strip()
 
             return OCRResult(
                 text=extracted,

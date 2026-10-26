@@ -136,7 +136,7 @@ def main() -> None:
         "prompt": (
             f"According to the uploaded specification '{synthetic_doc.name}', "
             "what is the continuous vibration alarm threshold and lubrication replacement interval? "
-            "Cite your source document using [Source: filename]."
+            "Search the 'production_live' collection and cite your source document using [Source: filename]."
         ),
         "session_id": session_id,
         "max_iterations": 4,
@@ -150,6 +150,11 @@ def main() -> None:
     print(f"    Citations verified: {agent_res['citations_verified']}")
     print(f"    Verified citations: {agent_res['verified_citations']}")
     print(f"    Response preview: {agent_res['response'][:150]}...")
+    assert agent_res["status"] == "completed", f"Agent task did not complete: {agent_res['status']}"
+    assert agent_res["citations_verified"], "Agent answer was not grounded in verified citations"
+    assert any(synthetic_doc.name.casefold() in citation.casefold() for citation in agent_res["verified_citations"]), (
+        f"Expected a verified citation to {synthetic_doc.name}: {agent_res['verified_citations']}"
+    )
 
     # 6. Deliverable Artifact Generation (.docx and .xlsx)
     print("\n[Step 6] Generating Deliverables in Session Workspace...")

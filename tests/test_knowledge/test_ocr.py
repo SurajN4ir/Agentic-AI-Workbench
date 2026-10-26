@@ -9,10 +9,18 @@ from unittest.mock import MagicMock
 from app.knowledge.ocr.base import OCRResult
 from app.knowledge.ocr.pipeline import OCRPipeline
 from app.knowledge.ocr.tesseract_engine import TesseractOCREngine
+from app.knowledge.ocr.vision_engine import preprocess_small_ocr_image
 from PIL import Image
 
 
 class TestOCREngine:
+    def test_small_ocr_images_are_upscaled_without_changing_large_layouts(self) -> None:
+        small = Image.new("RGB", (600, 240), color="white")
+        table = Image.new("RGB", (650, 260), color="white")
+
+        assert preprocess_small_ocr_image(small).size == (1200, 480)
+        assert preprocess_small_ocr_image(table).size == (650, 260)
+
     def test_tesseract_engine_availability_check(self) -> None:
         """Tesseract engine checks binary availability without throwing unhandled exceptions."""
         engine = TesseractOCREngine()

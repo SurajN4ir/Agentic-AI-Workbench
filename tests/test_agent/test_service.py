@@ -187,3 +187,106 @@ async def test_agent_service_citation_inspector_provenance(db_session: AsyncSess
         assert detail.rrf_score == 0.032
         assert "1250 C" in (detail.chunk_content or "")
 
+
+@pytest.mark.asyncio
+async def test_agent_service_sanitizes_fabricated_citation_from_empty_rag(
+    test_user: User,
+):
+    from app.routing.schemas import RouteDecision
+
+    raw_response = (
+        "I could not find information for tank T-9999, but see the "
+        "Cryogenic Tank Operating Manual [Source: Cryogenic_Tank_Operating_Manual.pdf]."
+    )
+
+    class StubGraph:
+        async def ainvoke(self, state):
+            return {
+                **state,
+                "status": "completed",
+                "model_tag": "test-model",
+                "route_decision": RouteDecision(
+                    role="reasoning",
+                    confidence=1.0,
+                    method="keyword",
+                    reasoning="unit test",
+                ).model_dump(),
+                "final_response": raw_response,
+                "tool_results": [
+                    {
+                        "tool_name": "rag_search",
+                        "status": "success",
+                        "data": {"results": []},
+                        "output": "No matching knowledge base documents found.",
+                    }
+                ],
+                "artifacts": [],
+            }
+
+    service = AgentService(provider=MockDirectProvider())
+    with patch("app.agent.service.AgentGraphBuilder.build", return_value=StubGraph()):
+        response = await service.run(
+            AgentRunRequest(prompt="Find the T-9999 maintenance schedule in internal documents."),
+            user=test_user,
+        )
+
+    assert "could not find relevant information in the internal knowledge base" in response.response.casefold()
+    assert "Cryogenic_Tank_Operating_Manual.pdf" not in response.response
+    assert response.citations_verified is False
+    assert response.verified_citations == []
+    assert response.citation_details == []
+    assert response.ungrounded_citations
+    assert response.evidence_fallback_used is False
+
+
+@pytest.mark.asyncio
+async def test_agent_service_uses_verified_excerpt_when_model_citation_fails(test_user: User):
+    from app.routing.schemas import RouteDecision
+
+    class StubGraph:
+        async def ainvoke(self, state):
+            return {
+                **state,
+                "status": "completed",
+                "model_tag": "test-model",
+                "route_decision": RouteDecision(
+                    role="reasoning",
+                    confidence=1.0,
+                    method="keyword",
+                    reasoning="unit test",
+                ).model_dump(),
+                "final_response": "The maximum cooling jacket temperature is 78.5 C [Source: invented_manual.pdf].",
+                "tool_results": [{
+                    "tool_name": "rag_search",
+                    "status": "success",
+                    "data": {"results": [{
+                        "source": "reactor_cooling_standard.txt",
+                        "page": None,
+                        "similarity": 0.88,
+                        "content": (
+                            "Standard RS-88: Maximum allowable cooling jacket temperature on reactor R-101 is "
+                            "78.5 degrees Celsius."
+                        ),
+                        "chunk_id": "chunk-123",
+                        "document_id": "doc-123",
+                    }]},
+                }],
+                "artifacts": [],
+            }
+
+    service = AgentService(provider=MockDirectProvider())
+    with patch("app.agent.service.AgentGraphBuilder.build", return_value=StubGraph()):
+        response = await service.run(
+            AgentRunRequest(
+                prompt="Search for the maximum allowable cooling jacket temperature on reactor R-101 and cite it."
+            ),
+            user=test_user,
+        )
+
+    assert response.evidence_fallback_used is True
+    assert response.citations_verified is True
+    assert response.verified_citations == ["reactor_cooling_standard.txt"]
+    assert response.citation_details[0].status == "SUPPORTED"
+    assert "78.5 degrees Celsius" in response.response
+    assert "invented_manual.pdf" not in response.response
+

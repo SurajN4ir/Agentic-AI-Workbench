@@ -23,7 +23,17 @@ try {
     Write-Host "[OK] Running" -ForegroundColor Green
 } catch {
     Write-Host "[WARNING] Not running. Launching 'ollama serve' in background..." -ForegroundColor Yellow
-    $ollamaProc = Start-Process -FilePath "ollama" -ArgumentList "serve" -RedirectStandardOutput "logs\ollama.log" -RedirectStandardError "logs\ollama_err.log" -WindowStyle Hidden -PassThru
+    $previousOllamaNoCloud = $env:OLLAMA_NO_CLOUD
+    $env:OLLAMA_NO_CLOUD = "1"
+    try {
+        $ollamaProc = Start-Process -FilePath "ollama" -ArgumentList "serve" -RedirectStandardOutput "logs\ollama.log" -RedirectStandardError "logs\ollama_err.log" -WindowStyle Hidden -PassThru
+    } finally {
+        if ($null -eq $previousOllamaNoCloud) {
+            Remove-Item Env:OLLAMA_NO_CLOUD -ErrorAction SilentlyContinue
+        } else {
+            $env:OLLAMA_NO_CLOUD = $previousOllamaNoCloud
+        }
+    }
     $pidsData["ollama_pid"] = $ollamaProc.Id
     Start-Sleep -Seconds 3
 }

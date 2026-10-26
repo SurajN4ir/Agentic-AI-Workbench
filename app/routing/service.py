@@ -15,6 +15,7 @@ Main TaskRouter service coordinating comprehensive waterfall routing:
 """
 
 import logging
+import re
 from functools import lru_cache
 from typing import Any
 
@@ -67,7 +68,23 @@ MATH_SIGNALS = (
     "linear regression",
 )
 
+MATH_NEGATIONS = (
+    "without formula",
+    "without formulas",
+    "no formula",
+    "no formulas",
+    "no calculation",
+    "without calculating",
+)
+
 RAG_SIGNALS = (
+    "uploaded specification",
+    "uploaded spec",
+    "uploaded document",
+    "attached specification",
+    "attached document",
+    "according to the uploaded",
+    "according to the attached",
     "in the knowledge base",
     "in the manual",
     "according to the doc",
@@ -76,6 +93,60 @@ RAG_SIGNALS = (
     "rag search",
     "knowledge base",
     "aeroturbine",
+    "look up",
+    "what is the specified",
+    "trip limit",
+    "trip threshold",
+    "requirements for",
+    "operating limits",
+    "operating manual",
+    "spec sheet",
+    "equipment manual",
+    "equipment manuals",
+    "technical documentation",
+    "technical documents",
+    "technical specifications",
+    "gas turbine specifications",
+    "described in the",
+    "manufacturer tolerance",
+    "standards doc",
+    "emergency sop",
+    "according to iso",
+)
+
+SPREADSHEET_SIGNALS = (
+    "spreadsheet",
+    "telemetry sheet",
+    "data sheet",
+    "filter the sheet",
+    "in the sheet",
+    "from the sheet",
+    "filter the table",
+    "filter the csv",
+    "query the spreadsheet",
+    "maintenance log sheet",
+    "csv export",
+    "sensor table",
+    "boiler sensor table",
+    "from the telemetry",
+    "marked as pending",
+    "column average",
+    "standard deviation",
+    "aggregate total",
+)
+
+DOC_GEN_SIGNALS = (
+    "generate a report",
+    "generate report",
+    "create a report",
+    "create report",
+    "engineering report",
+    "summary report",
+    "generate a pdf",
+    "generate pdf",
+    "downloadable pdf",
+    "export pdf",
+    "pdf report",
 )
 
 
@@ -146,6 +217,11 @@ class TaskRouter:
         prompt_lower = (prompt or "").lower()
         has_ocr_intent = any(sig in prompt_lower for sig in OCR_SIGNALS)
         has_math_intent = any(sig in prompt_lower for sig in MATH_SIGNALS)
+        has_negated_math = any(negation in prompt_lower for negation in MATH_NEGATIONS) or bool(
+            re.search(r"\bwithout\b.{0,40}\bformulas?\b", prompt_lower)
+        )
+        if has_negated_math:
+            has_math_intent = False
 
         # Stage 0.2: Multimodal Image & OCR Check
         if file_metadata:
@@ -236,28 +312,49 @@ class TaskRouter:
             meta_decision.fallback_model = get_model_for_role("reasoning")
             return meta_decision
 
-        # Stage 2: Heuristic Keyword Inspection Check (Coding signals)
-        kw_decision = check_keywords(prompt)
-        if kw_decision:
-            kw_decision.target_tools = ["code_sandbox"]
-            kw_decision.selected_model = get_model_for_role("coding")
-            kw_decision.fallback_role = "reasoning"
-            kw_decision.fallback_model = get_model_for_role("reasoning")
-            return kw_decision
+        # Domain-specific requests take precedence over incidental words such as
+        # "return" in a table query or "formula" in a negative instruction.
+        # Stage 2.1: Document Generation Intent Check
+        has_doc_action = any(act in prompt_lower for act in ("generate", "create", "export", "compile", "draft", "produce"))
+        has_doc_noun = any(noun in prompt_lower for noun in ("report", "document", "pdf", "dossier", "brief"))
+        has_doc_intent = any(sig in prompt_lower for sig in DOC_GEN_SIGNALS) or (has_doc_action and has_doc_noun)
 
-        # Stage 2.1: Mathematical or Calculation Task Check
-        if has_math_intent:
+        if has_doc_intent:
             selected_model = get_model_for_role("reasoning")
             return RouteDecision(
                 role="reasoning",
                 confidence=0.90,
                 method="keyword",
                 selected_model=selected_model,
-                target_tools=["math_eval"],
-                reasoning="Prompt requires verified engineering/mathematical computation; targeting math_eval tool.",
+                target_tools=["doc_gen", "file_io"],
+                reasoning="Prompt requests generated engineering documentation or PDF report; targeting doc_gen tool.",
             )
 
-        # Stage 2.2: RAG / Knowledge Base query keywords
+        # Stage 2.2: Tabular Spreadsheet Query Check
+        has_sheet_action = any(act in prompt_lower for act in ("filter", "query", "average", "mean", "sum", "column", "row", "calculate", "find"))
+        has_ranked_table_intent = any(sig in prompt_lower for sig in ("sort the", "top 5")) and any(
+            subject in prompt_lower for subject in ("table", "csv", "spreadsheet", "sheet", "sensor", "readings")
+        )
+        has_sheet_intent = any(sig in prompt_lower for sig in SPREADSHEET_SIGNALS) or has_ranked_table_intent or (
+            ("sheet" in prompt_lower or "table" in prompt_lower or "csv" in prompt_lower)
+            and has_sheet_action
+        )
+
+        if has_sheet_intent:
+            selected_model = get_model_for_role("reasoning")
+            target_tools = ["spreadsheet", "code_sandbox"]
+            if has_math_intent:
+                target_tools.append("math_eval")
+            return RouteDecision(
+                role="reasoning",
+                confidence=0.90,
+                method="keyword",
+                selected_model=selected_model,
+                target_tools=target_tools,
+                reasoning="Prompt requires tabular spreadsheet filtering or analysis; targeting spreadsheet tool.",
+            )
+
+        # Stage 2.3: RAG / Knowledge Base query keywords
         if any(sig in prompt_lower for sig in RAG_SIGNALS):
             selected_model = get_model_for_role("reasoning")
             return RouteDecision(
@@ -267,6 +364,27 @@ class TaskRouter:
                 selected_model=selected_model,
                 target_tools=["rag_search"],
                 reasoning="Prompt queries sovereign knowledge base; targeting rag_search tool.",
+            )
+
+        # Stage 2.4: Heuristic Keyword Inspection Check (Coding signals)
+        kw_decision = check_keywords(prompt)
+        if kw_decision:
+            kw_decision.target_tools = ["code_sandbox"]
+            kw_decision.selected_model = get_model_for_role("coding")
+            kw_decision.fallback_role = "reasoning"
+            kw_decision.fallback_model = get_model_for_role("reasoning")
+            return kw_decision
+
+        # Stage 2.5: Mathematical or Calculation Task Check
+        if has_math_intent:
+            selected_model = get_model_for_role("reasoning")
+            return RouteDecision(
+                role="reasoning",
+                confidence=0.90,
+                method="keyword",
+                selected_model=selected_model,
+                target_tools=["math_eval"],
+                reasoning="Prompt requires verified engineering/mathematical computation; targeting math_eval tool.",
             )
 
         # Stage 3: In-Memory ML Classifier Fallback

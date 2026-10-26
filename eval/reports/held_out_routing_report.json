@@ -1,0 +1,756 @@
+{
+  "benchmark": "held_out_routing_challenge_v1",
+  "timestamp": "2026-10-24T18:55:59.305812+00:00",
+  "total_cases": 35,
+  "total_correct": 35,
+  "overall_accuracy": 1.0,
+  "macro_precision": 1.0,
+  "macro_recall": 1.0,
+  "macro_f1": 1.0,
+  "weighted_f1": 1.0,
+  "confusion_matrix": {
+    "labels": [
+      "rag",
+      "code",
+      "math",
+      "spreadsheet",
+      "document",
+      "ocr",
+      "general"
+    ],
+    "matrix": {
+      "rag": {
+        "rag": 5,
+        "code": 0,
+        "math": 0,
+        "spreadsheet": 0,
+        "document": 0,
+        "ocr": 0,
+        "general": 0
+      },
+      "code": {
+        "rag": 0,
+        "code": 5,
+        "math": 0,
+        "spreadsheet": 0,
+        "document": 0,
+        "ocr": 0,
+        "general": 0
+      },
+      "math": {
+        "rag": 0,
+        "code": 0,
+        "math": 5,
+        "spreadsheet": 0,
+        "document": 0,
+        "ocr": 0,
+        "general": 0
+      },
+      "spreadsheet": {
+        "rag": 0,
+        "code": 0,
+        "math": 0,
+        "spreadsheet": 5,
+        "document": 0,
+        "ocr": 0,
+        "general": 0
+      },
+      "document": {
+        "rag": 0,
+        "code": 0,
+        "math": 0,
+        "spreadsheet": 0,
+        "document": 5,
+        "ocr": 0,
+        "general": 0
+      },
+      "ocr": {
+        "rag": 0,
+        "code": 0,
+        "math": 0,
+        "spreadsheet": 0,
+        "document": 0,
+        "ocr": 5,
+        "general": 0
+      },
+      "general": {
+        "rag": 0,
+        "code": 0,
+        "math": 0,
+        "spreadsheet": 0,
+        "document": 0,
+        "ocr": 0,
+        "general": 5
+      }
+    },
+    "total": 35
+  },
+  "per_class_metrics": {
+    "rag": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "support": 5,
+      "true_positives": 5,
+      "false_positives": 0,
+      "false_negatives": 0,
+      "true_negatives": 30
+    },
+    "code": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "support": 5,
+      "true_positives": 5,
+      "false_positives": 0,
+      "false_negatives": 0,
+      "true_negatives": 30
+    },
+    "math": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "support": 5,
+      "true_positives": 5,
+      "false_positives": 0,
+      "false_negatives": 0,
+      "true_negatives": 30
+    },
+    "spreadsheet": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "support": 5,
+      "true_positives": 5,
+      "false_positives": 0,
+      "false_negatives": 0,
+      "true_negatives": 30
+    },
+    "document": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "support": 5,
+      "true_positives": 5,
+      "false_positives": 0,
+      "false_negatives": 0,
+      "true_negatives": 30
+    },
+    "ocr": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "support": 5,
+      "true_positives": 5,
+      "false_positives": 0,
+      "false_negatives": 0,
+      "true_negatives": 30
+    },
+    "general": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "support": 5,
+      "true_positives": 5,
+      "false_positives": 0,
+      "false_negatives": 0,
+      "true_negatives": 30
+    }
+  },
+  "failures_count": 0,
+  "failures": [],
+  "cases": [
+    {
+      "id": "heldout_rag_01",
+      "prompt": "What are the recommended bearing lubrication intervals according to the equipment manual?",
+      "domain": "industrial_kb",
+      "expected_category": "rag",
+      "predicted_category": "rag",
+      "is_correct": true,
+      "has_file_attachment": false,
+      "router_role": "reasoning",
+      "router_method": "keyword",
+      "router_confidence": 0.85,
+      "target_tools": [
+        "rag_search"
+      ],
+      "reasoning": "Prompt queries sovereign knowledge base; targeting rag_search tool.",
+      "latency_ms": 1.33
+    },
+    {
+      "id": "heldout_rag_02",
+      "prompt": "Retrieve the maximum allowable exhaust temperature from the gas turbine specifications.",
+      "domain": "industrial_kb",
+      "expected_category": "rag",
+      "predicted_category": "rag",
+      "is_correct": true,
+      "has_file_attachment": false,
+      "router_role": "reasoning",
+      "router_method": "keyword",
+      "router_confidence": 0.85,
+      "target_tools": [
+        "rag_search"
+      ],
+      "reasoning": "Prompt queries sovereign knowledge base; targeting rag_search tool.",
+      "latency_ms": 0.99
+    },
+    {
+      "id": "heldout_rag_03",
+      "prompt": "Look up the safety shutdown sequence described in the plant emergency SOP.",
+      "domain": "industrial_kb",
+      "expected_category": "rag",
+      "predicted_category": "rag",
+      "is_correct": true,
+      "has_file_attachment": false,
+      "router_role": "reasoning",
+      "router_method": "keyword",
+      "router_confidence": 0.85,
+      "target_tools": [
+        "rag_search"
+      ],
+      "reasoning": "Prompt queries sovereign knowledge base; targeting rag_search tool.",
+      "latency_ms": 0.54
+    },
+    {
+      "id": "heldout_rag_04",
+      "prompt": "According to the ISO 10816 standards doc, what vibration severity zone does 4.2 mm/s fall into?",
+      "domain": "standards_kb",
+      "expected_category": "rag",
+      "predicted_category": "rag",
+      "is_correct": true,
+      "has_file_attachment": false,
+      "router_role": "reasoning",
+      "router_method": "keyword",
+      "router_confidence": 0.85,
+      "target_tools": [
+        "rag_search"
+      ],
+      "reasoning": "Prompt queries sovereign knowledge base; targeting rag_search tool.",
+      "latency_ms": 0.58
+    },
+    {
+      "id": "heldout_rag_05",
+      "prompt": "Find the manufacturer tolerance limits for rotor shaft axial displacement in the technical documentation.",
+      "domain": "industrial_kb",
+      "expected_category": "rag",
+      "predicted_category": "rag",
+      "is_correct": true,
+      "has_file_attachment": false,
+      "router_role": "reasoning",
+      "router_method": "keyword",
+      "router_confidence": 0.85,
+      "target_tools": [
+        "rag_search"
+      ],
+      "reasoning": "Prompt queries sovereign knowledge base; targeting rag_search tool.",
+      "latency_ms": 0.45
+    },
+    {
+      "id": "heldout_code_01",
+      "prompt": "Write a Python script using pandas to compute a rolling 24-hour moving average.",
+      "domain": "data_engineering",
+      "expected_category": "code",
+      "predicted_category": "code",
+      "is_correct": true,
+      "has_file_attachment": false,
+      "router_role": "coding",
+      "router_method": "keyword",
+      "router_confidence": 0.85,
+      "target_tools": [
+        "code_sandbox"
+      ],
+      "reasoning": "Matched coding keyword term 'python'.",
+      "latency_ms": 1.27
+    },
+    {
+      "id": "heldout_code_02",
+      "prompt": "Debug this IndexError: list index out of range in my binary search implementation.",
+      "domain": "algorithms",
+      "expected_category": "code",
+      "predicted_category": "code",
+      "is_correct": true,
+      "has_file_attachment": false,
+      "router_role": "coding",
+      "router_method": "keyword",
+      "router_confidence": 0.85,
+      "target_tools": [
+        "code_sandbox"
+      ],
+      "reasoning": "Matched coding keyword term 'debug'.",
+      "latency_ms": 1.24
+    },
+    {
+      "id": "heldout_code_03",
+      "prompt": "Refactor this SQL query to avoid duplicate rows and optimize the join order.",
+      "domain": "database",
+      "expected_category": "code",
+      "predicted_category": "code",
+      "is_correct": true,
+      "has_file_attachment": false,
+      "router_role": "coding",
+      "router_method": "keyword",
+      "router_confidence": 0.85,
+      "target_tools": [
+        "code_sandbox"
+      ],
+      "reasoning": "Matched coding keyword term 'refactor'.",
+      "latency_ms": 0.92
+    },
+    {
+      "id": "heldout_code_04",
+      "prompt": "Can you optimize this nested loop in my data ingestion pipeline to run in O(N) time?",
+      "domain": "algorithms",
+      "expected_category": "code",
+      "predicted_category": "code",
+      "is_correct": true,
+      "has_file_attachment": false,
+      "router_role": "coding",
+      "router_method": "classifier",
+      "router_confidence": 0.67,
+      "target_tools": [
+        "code_sandbox"
+      ],
+      "reasoning": "Stage 3 ML classifier predicted coding with 0.67 confidence.",
+      "latency_ms": 46.43
+    },
+    {
+      "id": "heldout_code_05",
+      "prompt": "Write a pytest unit test function verifying that divide(a, b) raises ZeroDivisionError when b=0.",
+      "domain": "testing",
+      "expected_category": "code",
+      "predicted_category": "code",
+      "is_correct": true,
+      "has_file_attachment": false,
+      "router_role": "coding",
+      "router_method": "keyword",
+      "router_confidence": 0.85,
+      "target_tools": [
+        "code_sandbox"
+      ],
+      "reasoning": "Matched coding keyword pattern 'unit test'.",
+      "latency_ms": 1.1
+    },
+    {
+      "id": "heldout_math_01",
+      "prompt": "Calculate the Carnot efficiency of a heat engine operating between 550 K and 300 K.",
+      "domain": "thermodynamics",
+      "expected_category": "math",
+      "predicted_category": "math",
+      "is_correct": true,
+      "has_file_attachment": false,
+      "router_role": "reasoning",
+      "router_method": "keyword",
+      "router_confidence": 0.9,
+      "target_tools": [
+        "math_eval"
+      ],
+      "reasoning": "Prompt requires verified engineering/mathematical computation; targeting math_eval tool.",
+      "latency_ms": 0.56
+    },
+    {
+      "id": "heldout_math_02",
+      "prompt": "Compute the pressure drop in a 50m pipe with Darcy friction factor 0.02, density 1000 kg/m3, and velocity 3 m/s.",
+      "domain": "fluid_dynamics",
+      "expected_category": "math",
+      "predicted_category": "math",
+      "is_correct": true,
+      "has_file_attachment": false,
+      "router_role": "reasoning",
+      "router_method": "keyword",
+      "router_confidence": 0.9,
+      "target_tools": [
+        "math_eval"
+      ],
+      "reasoning": "Prompt requires verified engineering/mathematical computation; targeting math_eval tool.",
+      "latency_ms": 0.78
+    },
+    {
+      "id": "heldout_math_03",
+      "prompt": "Solve the quadratic equation 3*x**2 - 14*x + 8 = 0.",
+      "domain": "algebra",
+      "expected_category": "math",
+      "predicted_category": "math",
+      "is_correct": true,
+      "has_file_attachment": false,
+      "router_role": "reasoning",
+      "router_method": "keyword",
+      "router_confidence": 0.9,
+      "target_tools": [
+        "math_eval"
+      ],
+      "reasoning": "Prompt requires verified engineering/mathematical computation; targeting math_eval tool.",
+      "latency_ms": 0.61
+    },
+    {
+      "id": "heldout_math_04",
+      "prompt": "What is the Reynolds number for water flow with velocity 1.8 m/s, diameter 0.05 m, and kinematic viscosity 1e-6 m2/s?",
+      "domain": "fluid_dynamics",
+      "expected_category": "math",
+      "predicted_category": "math",
+      "is_correct": true,
+      "has_file_attachment": false,
+      "router_role": "reasoning",
+      "router_method": "keyword",
+      "router_confidence": 0.9,
+      "target_tools": [
+        "math_eval"
+      ],
+      "reasoning": "Prompt requires verified engineering/mathematical computation; targeting math_eval tool.",
+      "latency_ms": 0.74
+    },
+    {
+      "id": "heldout_math_05",
+      "prompt": "Evaluate the integral of (4*x**3 - 6*x**2 + 2*x) from x=0 to x=2.",
+      "domain": "calculus",
+      "expected_category": "math",
+      "predicted_category": "math",
+      "is_correct": true,
+      "has_file_attachment": false,
+      "router_role": "reasoning",
+      "router_method": "keyword",
+      "router_confidence": 0.9,
+      "target_tools": [
+        "math_eval"
+      ],
+      "reasoning": "Prompt requires verified engineering/mathematical computation; targeting math_eval tool.",
+      "latency_ms": 0.54
+    },
+    {
+      "id": "heldout_sheet_01",
+      "prompt": "Filter the telemetry spreadsheet to find all rows where bearing temperature exceeds 90 C.",
+      "domain": "tabular_analytics",
+      "expected_category": "spreadsheet",
+      "predicted_category": "spreadsheet",
+      "is_correct": true,
+      "has_file_attachment": false,
+      "router_role": "reasoning",
+      "router_method": "keyword",
+      "router_confidence": 0.9,
+      "target_tools": [
+        "spreadsheet",
+        "code_sandbox"
+      ],
+      "reasoning": "Prompt requires tabular spreadsheet filtering or analysis; targeting spreadsheet tool.",
+      "latency_ms": 0.3
+    },
+    {
+      "id": "heldout_sheet_02",
+      "prompt": "In the maintenance log sheet, count how many work orders are marked as pending.",
+      "domain": "tabular_analytics",
+      "expected_category": "spreadsheet",
+      "predicted_category": "spreadsheet",
+      "is_correct": true,
+      "has_file_attachment": false,
+      "router_role": "reasoning",
+      "router_method": "keyword",
+      "router_confidence": 0.9,
+      "target_tools": [
+        "spreadsheet",
+        "code_sandbox"
+      ],
+      "reasoning": "Prompt requires tabular spreadsheet filtering or analysis; targeting spreadsheet tool.",
+      "latency_ms": 0.58
+    },
+    {
+      "id": "heldout_sheet_03",
+      "prompt": "Compute the column average of flow rate and standard deviation in the CSV export.",
+      "domain": "tabular_analytics",
+      "expected_category": "spreadsheet",
+      "predicted_category": "spreadsheet",
+      "is_correct": true,
+      "has_file_attachment": false,
+      "router_role": "reasoning",
+      "router_method": "keyword",
+      "router_confidence": 0.9,
+      "target_tools": [
+        "spreadsheet",
+        "code_sandbox",
+        "math_eval"
+      ],
+      "reasoning": "Prompt requires tabular spreadsheet filtering or analysis; targeting spreadsheet tool.",
+      "latency_ms": 0.83
+    },
+    {
+      "id": "heldout_sheet_04",
+      "prompt": "Sort the boiler sensor table by pressure descending and return the top 5 highest readings.",
+      "domain": "tabular_analytics",
+      "expected_category": "spreadsheet",
+      "predicted_category": "spreadsheet",
+      "is_correct": true,
+      "has_file_attachment": false,
+      "router_role": "reasoning",
+      "router_method": "keyword",
+      "router_confidence": 0.9,
+      "target_tools": [
+        "spreadsheet",
+        "code_sandbox"
+      ],
+      "reasoning": "Prompt requires tabular spreadsheet filtering or analysis; targeting spreadsheet tool.",
+      "latency_ms": 0.53
+    },
+    {
+      "id": "heldout_sheet_05",
+      "prompt": "Aggregate total fuel consumption by turbine ID from the telemetry sheet.",
+      "domain": "tabular_analytics",
+      "expected_category": "spreadsheet",
+      "predicted_category": "spreadsheet",
+      "is_correct": true,
+      "has_file_attachment": false,
+      "router_role": "reasoning",
+      "router_method": "keyword",
+      "router_confidence": 0.9,
+      "target_tools": [
+        "spreadsheet",
+        "code_sandbox"
+      ],
+      "reasoning": "Prompt requires tabular spreadsheet filtering or analysis; targeting spreadsheet tool.",
+      "latency_ms": 0.56
+    },
+    {
+      "id": "heldout_doc_01",
+      "prompt": "Generate a formal PDF inspection report summarizing bearing wear and oil analysis for Unit 3.",
+      "domain": "reporting",
+      "expected_category": "document",
+      "predicted_category": "document",
+      "is_correct": true,
+      "has_file_attachment": false,
+      "router_role": "reasoning",
+      "router_method": "keyword",
+      "router_confidence": 0.9,
+      "target_tools": [
+        "doc_gen",
+        "file_io"
+      ],
+      "reasoning": "Prompt requests generated engineering documentation or PDF report; targeting doc_gen tool.",
+      "latency_ms": 0.67
+    },
+    {
+      "id": "heldout_doc_02",
+      "prompt": "Create an executive summary report in PDF format regarding last week's turbine vibration test.",
+      "domain": "reporting",
+      "expected_category": "document",
+      "predicted_category": "document",
+      "is_correct": true,
+      "has_file_attachment": false,
+      "router_role": "reasoning",
+      "router_method": "keyword",
+      "router_confidence": 0.9,
+      "target_tools": [
+        "doc_gen",
+        "file_io"
+      ],
+      "reasoning": "Prompt requests generated engineering documentation or PDF report; targeting doc_gen tool.",
+      "latency_ms": 0.75
+    },
+    {
+      "id": "heldout_doc_03",
+      "prompt": "Draft a formal engineering compliance brief documenting the annual emissions audit findings.",
+      "domain": "reporting",
+      "expected_category": "document",
+      "predicted_category": "document",
+      "is_correct": true,
+      "has_file_attachment": false,
+      "router_role": "reasoning",
+      "router_method": "keyword",
+      "router_confidence": 0.9,
+      "target_tools": [
+        "doc_gen",
+        "file_io"
+      ],
+      "reasoning": "Prompt requests generated engineering documentation or PDF report; targeting doc_gen tool.",
+      "latency_ms": 0.55
+    },
+    {
+      "id": "heldout_doc_04",
+      "prompt": "Compile an equipment handover dossier with maintenance history for the shift supervisor.",
+      "domain": "reporting",
+      "expected_category": "document",
+      "predicted_category": "document",
+      "is_correct": true,
+      "has_file_attachment": false,
+      "router_role": "reasoning",
+      "router_method": "keyword",
+      "router_confidence": 0.9,
+      "target_tools": [
+        "doc_gen",
+        "file_io"
+      ],
+      "reasoning": "Prompt requests generated engineering documentation or PDF report; targeting doc_gen tool.",
+      "latency_ms": 0.61
+    },
+    {
+      "id": "heldout_doc_05",
+      "prompt": "Export a PDF summary report highlighting overdue preventive maintenance tasks.",
+      "domain": "reporting",
+      "expected_category": "document",
+      "predicted_category": "document",
+      "is_correct": true,
+      "has_file_attachment": false,
+      "router_role": "reasoning",
+      "router_method": "keyword",
+      "router_confidence": 0.9,
+      "target_tools": [
+        "doc_gen",
+        "file_io"
+      ],
+      "reasoning": "Prompt requests generated engineering documentation or PDF report; targeting doc_gen tool.",
+      "latency_ms": 0.64
+    },
+    {
+      "id": "heldout_ocr_01",
+      "prompt": "Extract and transcribe all text from this scanned nameplate photo.",
+      "domain": "multimodal_vision",
+      "expected_category": "ocr",
+      "predicted_category": "ocr",
+      "is_correct": true,
+      "has_file_attachment": true,
+      "router_role": "ocr",
+      "router_method": "ocr_detection",
+      "router_confidence": 1.0,
+      "target_tools": [
+        "ocr_extract"
+      ],
+      "reasoning": "Attached input requires OCR text extraction with target tools ['ocr_extract'].",
+      "latency_ms": 1.45
+    },
+    {
+      "id": "heldout_ocr_02",
+      "prompt": "Read the pressure gauge numbers and units shown on this analog dial.",
+      "domain": "multimodal_vision",
+      "expected_category": "ocr",
+      "predicted_category": "ocr",
+      "is_correct": true,
+      "has_file_attachment": true,
+      "router_role": "vision",
+      "router_method": "vision_detection",
+      "router_confidence": 1.0,
+      "target_tools": [],
+      "reasoning": "Attached image 'analog_gauge.jpg' requires local multimodal vision model.",
+      "latency_ms": 1.55
+    },
+    {
+      "id": "heldout_ocr_03",
+      "prompt": "Transcribe the handwritten maintenance notes on this inspection sheet.",
+      "domain": "multimodal_vision",
+      "expected_category": "ocr",
+      "predicted_category": "ocr",
+      "is_correct": true,
+      "has_file_attachment": true,
+      "router_role": "ocr",
+      "router_method": "ocr_detection",
+      "router_confidence": 1.0,
+      "target_tools": [
+        "ocr_extract"
+      ],
+      "reasoning": "Attached input requires OCR text extraction with target tools ['ocr_extract'].",
+      "latency_ms": 1.05
+    },
+    {
+      "id": "heldout_ocr_04",
+      "prompt": "Read the serial number label on this valve tag.",
+      "domain": "multimodal_vision",
+      "expected_category": "ocr",
+      "predicted_category": "ocr",
+      "is_correct": true,
+      "has_file_attachment": true,
+      "router_role": "vision",
+      "router_method": "vision_detection",
+      "router_confidence": 1.0,
+      "target_tools": [],
+      "reasoning": "Attached image 'valve_tag.png' requires local multimodal vision model.",
+      "latency_ms": 1.31
+    },
+    {
+      "id": "heldout_ocr_05",
+      "prompt": "Extract the tabular values and read table from this scanned calibration report.",
+      "domain": "multimodal_ocr",
+      "expected_category": "ocr",
+      "predicted_category": "ocr",
+      "is_correct": true,
+      "has_file_attachment": true,
+      "router_role": "ocr",
+      "router_method": "ocr_detection",
+      "router_confidence": 1.0,
+      "target_tools": [
+        "ocr_extract"
+      ],
+      "reasoning": "Attached input requires OCR text extraction with target tools ['ocr_extract'].",
+      "latency_ms": 1.31
+    },
+    {
+      "id": "heldout_gen_01",
+      "prompt": "Hello! What can you help me with in this workbench today?",
+      "domain": "conversational",
+      "expected_category": "general",
+      "predicted_category": "general",
+      "is_correct": true,
+      "has_file_attachment": false,
+      "router_role": "reasoning",
+      "router_method": "classifier",
+      "router_confidence": 0.55,
+      "target_tools": [],
+      "reasoning": "Stage 3 ML classifier predicted reasoning with 0.55 confidence.",
+      "latency_ms": 2.02
+    },
+    {
+      "id": "heldout_gen_02",
+      "prompt": "Explain the theoretical thermodynamic differences between the Brayton cycle and Rankine cycle.",
+      "domain": "conceptual_physics",
+      "expected_category": "general",
+      "predicted_category": "general",
+      "is_correct": true,
+      "has_file_attachment": false,
+      "router_role": "reasoning",
+      "router_method": "classifier",
+      "router_confidence": 0.73,
+      "target_tools": [],
+      "reasoning": "Stage 3 ML classifier predicted reasoning with 0.73 confidence.",
+      "latency_ms": 1.72
+    },
+    {
+      "id": "heldout_gen_03",
+      "prompt": "What are the common failure modes of centrifugal impellers?",
+      "domain": "engineering_qa",
+      "expected_category": "general",
+      "predicted_category": "general",
+      "is_correct": true,
+      "has_file_attachment": false,
+      "router_role": "reasoning",
+      "router_method": "classifier",
+      "router_confidence": 0.82,
+      "target_tools": [],
+      "reasoning": "Stage 3 ML classifier predicted reasoning with 0.82 confidence.",
+      "latency_ms": 1.73
+    },
+    {
+      "id": "heldout_gen_04",
+      "prompt": "Can you explain how neural networks learn without showing any code or formulas?",
+      "domain": "negative_example",
+      "expected_category": "general",
+      "predicted_category": "general",
+      "is_correct": true,
+      "has_file_attachment": false,
+      "router_role": "reasoning",
+      "router_method": "classifier",
+      "router_confidence": 0.57,
+      "target_tools": [],
+      "reasoning": "Stage 3 ML classifier predicted reasoning with 0.57 confidence.",
+      "latency_ms": 2.19
+    },
+    {
+      "id": "heldout_gen_05",
+      "prompt": "Tell me a joke about mechanical engineers working on steam turbines.",
+      "domain": "creative",
+      "expected_category": "general",
+      "predicted_category": "general",
+      "is_correct": true,
+      "has_file_attachment": false,
+      "router_role": "reasoning",
+      "router_method": "classifier",
+      "router_confidence": 0.55,
+      "target_tools": [],
+      "reasoning": "Stage 3 ML classifier predicted reasoning with 0.55 confidence.",
+      "latency_ms": 2.21
+    }
+  ]
+}

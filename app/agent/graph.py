@@ -282,12 +282,11 @@ class AgentGraphBuilder:
                 return "Validation failed: 'query' parameter is required and cannot be empty for rag_search."
 
         elif tool_name == "doc_gen":
-            title = args.get("title")
-            content = args.get("content")
-            if not isinstance(title, str) or not title.strip():
-                return "Validation failed: 'title' parameter is required and cannot be empty for doc_gen."
-            if not isinstance(content, str) or not content.strip():
-                return "Validation failed: 'content' parameter is required and cannot be empty for doc_gen."
+            from app.tools.doc_gen_validation import normalize_doc_gen_input
+
+            _, validation_error = normalize_doc_gen_input(args)
+            if validation_error:
+                return validation_error
 
         elif tool_name == "file_io":
             op = args.get("operation")
@@ -359,6 +358,13 @@ class AgentGraphBuilder:
                         "spreadsheet",
                         "TASK NOTICE: The input file is a spreadsheet. "
                         "You MUST invoke the 'spreadsheet' tool to inspect or query the data before answering.",
+                    )
+                elif target_tool == "rag_search":
+                    return (
+                        "rag_search",
+                        "TASK NOTICE: This request requires authoritative information from the private knowledge base. "
+                        "You MUST invoke 'rag_search' before answering, then cite retrieved evidence using "
+                        "[Source: exact_filename] and report only facts supported by those results.",
                     )
 
         # 4. Code execution requirement (code_sandbox)

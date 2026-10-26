@@ -1,16 +1,16 @@
 # Sovereign On-Premise Agentic AI Workbench
 
-[![Tests](https://img.shields.io/badge/pytest-233%20passed%20%7C%201%20skipped-brightgreen.svg)](#test-and-verification-suite)
-[![Acceptance](https://img.shields.io/badge/acceptance-12%2F12%20verified-success.svg)](#live-multimodal-acceptance-test-matrix)
+[![Tests](https://img.shields.io/badge/pytest-291%20passed%20%7C%201%20skipped-brightgreen.svg)](#test-and-verification-suite)
+[![Browser acceptance](https://img.shields.io/badge/browser%20acceptance-13%2F13-success.svg)](#browser-and-docker-runtime-acceptance)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115%2B-009688.svg)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/frontend-React%2018%20%2B%20TypeScript%20%2B%20Tailwind-61dafb.svg)](https://reactjs.org/)
 [![Ollama](https://img.shields.io/badge/inference-Ollama%20(Local%20CUDA)-black.svg)](https://ollama.com/)
-[![Security](https://img.shields.io/badge/security-TOTP%20MFA%20%7C%20RBAC%20%7C%20Air--Gapped-red.svg)](#sovereign-security--air-gapped-governance)
+[![Security](https://img.shields.io/badge/security-TOTP%20MFA%20%7C%20RBAC%20%7C%20Local--First-orange.svg)](#local-first-security-and-governance)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**Academic Title:** *Sovereign On-Premise Agentic AI Workbench using Open-Weight Multimodal LLMs for Confidential Industrial Work*  
-**Domain:** Industrial AI, On-Premise Autonomous Agents, Multimodal RAG, and Air-Gapped Engineering Automation.
+**Academic Title:** *Sovereign On-Premise Agentic AI Workbench using Open-Weight Multimodal LLMs for Confidential Industrial Work*<br>
+**Domain:** Industrial AI, On-Premise Autonomous Agents, Multimodal RAG, and Local-First Engineering Automation.
 
 ---
 
@@ -18,9 +18,9 @@
 
 Confidential industrial environments—such as energy refineries, power utilities, aerospace manufacturing plants, and defense infrastructure—routinely handle sensitive telemetry, proprietary process flow diagrams (PFDs), pipeline and instrumentation diagrams (P&IDs), and operational specifications. Modern cloud-hosted AI APIs (such as OpenAI GPT-4 or Anthropic Claude) present severe regulatory, sovereignty, and data-leakage risks when processing confidential engineering assets.
 
-The **Sovereign On-Premise Agentic AI Workbench** delivers an air-gapped, zero-leakage, open-weight agentic platform engineered specifically for industrial engineering workflows. It pairs local multimodal large language models (LLMs) with a deterministic tool execution suite, LangGraph state machine orchestration, hybrid dense/sparse retrieval-augmented generation (RAG), and rule-based citation grounding verification.
+The **Sovereign On-Premise Agentic AI Workbench** is a local-first academic prototype for industrial engineering workflows. It pairs open-weight multimodal language models served by a local Ollama endpoint with deterministic tools, LangGraph orchestration, hybrid retrieval-augmented generation (RAG), and rule-based citation grounding checks. The project is not certified as air-gapped or production-ready; host and deployment egress controls must be enforced and validated separately.
 
-All inference runs 100% locally on host hardware using **Ollama** with CUDA GPU acceleration, ensuring that no proprietary telemetry or sensitive documentation ever leaves the local perimeter.
+Inference is configured through a local **Ollama** endpoint. This application configuration alone does not prove that host traffic or every deployment service is isolated from external networks.
 
 ---
 
@@ -55,10 +55,10 @@ All inference runs 100% locally on host hardware using **Ollama** with CUDA GPU 
 
 6. **Benchmark & Evaluation Analytics Dashboard:**
    - Integrated test runner benchmarking scenarios across categories (`engineering_reasoning`, `symbolic_math`, `data_analysis`, `knowledge_retrieval`, `deliverable_generation`, `security_adversarial`).
-   - Visual analytics tracking scenario pass rates (100% across 15 standard scenarios achieving $\ge 0.70$ threshold), composite quality scores (0.915 baseline), latency distributions, and regression trends.
+   - Visual analytics tracking scenario results, composite quality scores, latency distributions, and regression trends. Evaluation results are specific to their recorded test data and environment.
 
-7. **Sovereign Security & Air-Gapped Governance:**
-   - Strict Offline Guard: an application-level Python socket interceptor monkey-patching `socket.connect` to block non-loopback outbound traffic while allowing local Ollama and database operations. (Note: this provides runtime software-level containment, not physical hardware air-gapping).
+7. **Local-First Security & Governance:**
+   - Strict Offline Guard: an application-level Python socket interceptor that blocks non-loopback connections from the guarded process. This is not a host firewall, does not isolate every service, and does not establish an air gap.
    - Role-Based Access Control (RBAC) with three standard roles: `admin`, `engineer`, `analyst`.
    - Time-based One-Time Password (TOTP) Multi-Factor Authentication with encrypted backup codes.
    - Append-only relational audit logging recording all authentication events, tool invocations, and citation grounding checks in SQLite / PostgreSQL.
@@ -78,7 +78,7 @@ flowchart TD
     subgraph Backend["FastAPI Sovereign Backend (127.0.0.1:8000)"]
         Auth["Auth & RBAC Middleware\n(JWT Bearer + TOTP MFA)"]
         Router["Multimodal Task Router\n(MIME, Extension & Intent Classifier)"]
-        
+      <br>
         subgraph Orchestration["LangGraph State Machine Engine"]
             RouteNode["route_node"]
             ReasonNode["reason_node\n(Local Inference + JSON Tool Call Parser)"]
@@ -160,9 +160,15 @@ In accordance with rigorous academic engineering standards, the following operat
 2. **Optical Character Recognition Engine & Scope:**
    - While native Tesseract binaries are supported when installed on the host OS (`tesseract.exe`), they are **optional**.
    - The workbench incorporates `VisionModelOCREngine`, which renders PDF pages at 2.0x scale using `pypdfium2` and transcribes high-resolution text, serials, and tables verbatim using `qwen3.5:4b` with a 1024-token budget without requiring external C++ OCR binaries.
-   - *Accuracy Disclosure:* 100% text/numeric extraction has been verified against the project's synthetic benchmark test fixtures (`live_test_nameplate.png` and `scanned_test_cert.pdf`). Real-world performance on degraded physical scans depends on document DPI, lighting, and model resolution limits.
+   - *Accuracy Disclosure:* A four-fixture live evaluation with `qwen3.5:4b` measured 4.71% macro CER and 3.32% micro CER. The ambiguous serial-tag fixture scored 13.33% CER, WER 1.0, and zero expected-keyword recall. Do not use OCR alone for critical identifiers; see `eval/reports/final_live_ocr.md`.
 3. **Application-Level Offline Containment:**
-   - Offline isolation is enforced via an in-process Python socket interceptor that monkey-patches `socket.connect`, permitting only loopback connections (`127.0.0.1`, `localhost`) for Ollama and database services. This provides software-level containment rather than physical or OS-level air-gapping.
+   - An in-process Python socket interceptor blocks non-loopback connections from guarded application code. This is a software check only; it does not control host traffic or independently isolate every service.
+
+### Browser and Docker Runtime Acceptance
+
+- **Browser-driven UI:** 13/13 synthetic acceptance checks passed, covering login, upload, Knowledge Hub inspection, RAG, citation navigation, DOCX/XLSX generation, downloads, and browser errors. The JSON record is `eval/post-audit-2026-10-26-completion/browser_acceptance_verified-final-explicit-docx-2026-10-26.json`.
+- **Code sandbox:** 12/12 live checks passed on Docker Desktop 29.7.2, including non-root execution, denied host-privilege operations and network access, workspace mounts, timeout, cleanup, and failure behavior. See `eval/post-audit-2026-10-26/docker_sandbox_runtime.json`.
+- These checks verify the browser workflow and the code-execution container only. The host previously reached public HTTPS and the Compose network is not configured as internal. The project is suitable for a controlled synthetic-data academic demonstration with disclosed limits; it is **not ready for confidential industrial data or production deployment**.
 
 ---
 
@@ -222,6 +228,7 @@ cd ..
 
 **Terminal 1 — Local Inference Engine (Ollama):**
 ```powershell
+$env:OLLAMA_NO_CLOUD = "1"
 ollama serve
 ```
 
@@ -245,7 +252,7 @@ Access the application in your browser at `http://127.0.0.1:8000` (production bu
 The repository undergoes exhaustive automated test verification across unit, integration, and end-to-end acceptance layers:
 
 ```powershell
-# Run full automated test suite (233 tests)
+# Run full automated test suite
 .venv\Scripts\pytest
 
 # Run static lint and code formatting audit
@@ -265,14 +272,14 @@ The repository undergoes exhaustive automated test verification across unit, int
 ```
 
 ### Automated Pytest Summary
-- **Passed:** 233 tests
-- **Skipped:** 1 test (`test_docker_sandbox` skipped when host Docker daemon is offline, adhering to fail-closed policy)
-- **Failed:** 0
-- **Duration:** 75.33 seconds
+- **Last complete model-enabled run (2026-10-26):** 291 passed, 1 skipped, 0 failed (292 collected; 84.41 seconds).
+- The skip was a Windows symlink-creation restriction in `tests/test_tools/test_adversarial_security.py`.
+- A later publish-preflight run could not reach the local Ollama HTTP endpoint and reported 279 passed, 12 skipped, 1 failed. The failure was `test_real_ollama_health_and_list`; model-backed integration tests were unavailable in that run. See `eval/reports/current_project_status.md` for context.
+- The full suite was not rerun after the final Docker non-root change; the four sandbox unit tests and live Docker checks passed separately.
 
 ### Operational Hardening & Security Disclosures
 1. **Sandbox Fail-Closed Policy:** When the Docker daemon is unreachable or stopped on the host system, code execution fails closed (`Execution blocked (fail-closed)`), strictly preventing uncontained execution on the host OS.
-2. **Local Vision OCR Engine Fallback:** In air-gapped environments without native Tesseract binaries, the integrated `VisionModelOCREngine` (`qwen3.5:4b`) provides verified local OCR transcription (verified 100% text and numeric extraction on synthetic benchmark test fixtures `live_test_nameplate.png` and `scanned_test_cert.pdf`).
+2. **Local Vision OCR Engine Fallback:** When Tesseract is unavailable, `VisionModelOCREngine` can use the locally configured `qwen3.5:4b` model. Its measured synthetic-fixture errors are recorded above; serial tags require human verification.
 3. **Zero Hardcoded Secrets & Dynamic Credential Ingestion:** Administrative and user credentials are cryptographically generated, hashed with bcrypt, and loaded dynamically from `.env` or system environment variables (`SOVEREIGN_ADMIN_PASSWORD`, `SOVEREIGN_ANALYST_PASSWORD`), ensuring zero credential leakage in source tracking.
 
 
@@ -308,6 +315,17 @@ The comprehensive evaluation benchmark suite (`app/benchmark/runner.py`) evaluat
 - **Security Violations:** `0` (100% adversarial prompt injections and path traversals blocked).
 - **Latency Profile:** Mean `7.54s`, p95 `73.15s` (governed by local vision model token generation).
 
+### Reproducible Evaluation Runs
+
+The repository also includes an independent 35-prompt held-out routing challenge and a quantitative evaluation runner for OCR, routing, retrieval, citation grounding, and deterministic tools. Run them from the repository root:
+
+```powershell
+.venv\Scripts\python scripts/run_held_out_routing_eval.py
+.venv\Scripts\python scripts/run_quantitative_eval.py --mode deterministic
+```
+
+The current held-out routing result is **35/35 (100%)**. The quantitative run is recorded in `eval/reports/quantitative_eval_report.md`; it reports subsystem metrics separately, including retrieval and grounding, so the routing score is not presented as an overall system accuracy. The latest live OCR attempt could not reach Ollama from the verification environment, so it marks OCR as unavailable rather than assigning a transcription score. Both runners write machine-readable JSON and Markdown reports under `eval/reports/`.
+
 ---
 
 ## Project Synopsis Alignment Matrix
@@ -319,13 +337,13 @@ The implementation satisfies all foundational, operational, and security require
 | **On-Premise LLM Inference** | Ollama local inference provider with CUDA offloading | `app/models/ollama.py`, `app/models/registry.py` |
 | **Dynamic Multimodal Routing** | Intelligent router classifying MIME, extension, and user intent | `app/routing/service.py`, `app/routing/classifier.py`, `app/routing/router.py` |
 | **LangGraph Agent Workflow** | State graph with bounded retries, tool execution, and synthesis | `app/agent/graph.py`, `app/agent/state.py`, `app/agent/service.py` |
-| **Hybrid RAG & Vector Store** | pgvector dense embeddings + BM25 sparse keyword ranking | `app/knowledge/retriever.py`, `app/knowledge/hybrid.py`, `app/knowledge/service.py` |
+| **Hybrid RAG & Vector Store** | Local document ingestion, dense similarity, and sparse lexical retrieval | `app/knowledge/service.py`, `app/knowledge/models.py` |
 | **Citation Grounding Guard** | Rule-based numerical & string verification against retrieved evidence | `app/agent/citation_validator.py`, `app/agent/prompts.py` |
-| **Industrial Tool Suite** | Deterministic math, spreadsheet analytics, and sandboxed code | `app/tools/math_eval.py`, `app/tools/spreadsheet.py`, `app/tools/code_sandbox.py` |
+| **Industrial Tool Suite** | Deterministic math, spreadsheet analytics, and sandboxed code | `app/tools/math_eval.py`, `app/tools/spreadsheet.py`, `app/sandbox/docker_sandbox.py` |
 | **Vision & PDF OCR Engine** | High-resolution PDF rasterization and vision transcription | `app/knowledge/ocr/vision_engine.py`, `app/knowledge/ocr/pipeline.py` |
-| **Interactive Grounding UI** | Knowledge Hub chunk browser and citation grounding inspector | `frontend/src/pages/KnowledgeHub.tsx`, `frontend/src/pages/CitationInspector.tsx` |
-| **Evaluation Benchmark UI** | Live evaluation runner, category breakdowns, and regression charts | `frontend/src/pages/EvaluationDashboard.tsx`, `app/benchmark/runner.py` |
-| **Air-Gapped Security & RBAC** | Strict socket offline guard, JWT sessions, TOTP MFA, append-only audit | `app/identity/service.py`, `app/identity/totp.py`, `app/audit/service.py` |
+| **Interactive Grounding UI** | Knowledge Hub chunk browser and citation grounding inspector | `frontend/src/components/KnowledgeHub.tsx`, `frontend/src/components/CitationInspectorDrawer.tsx` |
+| **Evaluation Benchmark UI** | Benchmark dashboard and scenario analytics | `frontend/src/components/BenchmarkDashboard.tsx`, `app/benchmarks/service.py` |
+| **Local-First Security & RBAC** | Application-level socket guard, JWT sessions, TOTP MFA, append-only audit | `app/identity/service.py`, `app/identity/totp.py`, `app/audit/service.py` |
 
 ---
 
@@ -375,6 +393,6 @@ D:\AGENTIC AI MAJOR PROJECT\
 
 This project is released under the **MIT License**. See [LICENSE](LICENSE) for details.
 
-Developed as a Major Project for the Bachelor of Technology (B.Tech) degree in Computer Science & Engineering.  
-*Author:* Suraj Nair  
+Developed as a Major Project for the Bachelor of Technology (B.Tech) degree in Computer Science & Engineering.<br>
+*Author:* Suraj Nair<br>
 *Repository:* [https://github.com/SurajN4ir/Agentic-AI-Workbench](https://github.com/SurajN4ir/Agentic-AI-Workbench)

@@ -23,6 +23,7 @@ from app.models.schemas import (
     GenerateOptions,
     ModelResponse,
 )
+from app.routing.service import TaskRouter
 from app.tools.registry import ToolRegistry
 
 
@@ -54,6 +55,25 @@ class MockDirectProvider(BaseModelProvider):
 
     async def health_check(self) -> bool:
         return True
+
+
+def test_graph_forces_rag_search_for_routed_knowledge_request() -> None:
+    builder = AgentGraphBuilder()
+    decision = TaskRouter().route(
+        "According to the uploaded specification, what is the vibration alarm threshold?"
+    )
+    requirement = builder.determine_unsatisfied_tool_requirement(
+        {
+            "user_role": "analyst",
+            "prompt": "According to the uploaded specification, what is the vibration alarm threshold?",
+            "route_decision": decision.model_dump(),
+            "tool_results": [],
+            "final_response": "The threshold is 4.5 mm/s.",
+        }
+    )
+    assert requirement is not None
+    assert requirement[0] == "rag_search"
+    assert "MUST invoke 'rag_search'" in requirement[1]
 
 
 class MockMathToolProvider(BaseModelProvider):

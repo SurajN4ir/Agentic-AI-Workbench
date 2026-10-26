@@ -1,0 +1,273 @@
+{
+  "timestamp": "2026-10-25T05:44:20.499824+00:00",
+  "mode": "live_local_ollama",
+  "model": "qwen3.5:4b",
+  "temperature": 0.0,
+  "num_predict": 1024,
+  "think": false,
+  "comparison_note": "Both variants hold thinking disabled to isolate the prompt/system-instruction change. The historical baseline omitted the think field; a separate exact legacy request timed out before returning a prediction and is not scored here.",
+  "fixture_source": "eval\\dataset\\quantitative_eval_dataset.json",
+  "ground_truth_source": "eval\\dataset\\quantitative_ground_truth.json",
+  "baseline_prompt": "Read and transcribe all visible text, numbers, labels, and units in this image verbatim. Do not explain.",
+  "candidate_system_prompt": "You are an OCR engine. Output only the verbatim text found in the image. Do not explain, describe, or converse.",
+  "candidate_prompt": "Extract and transcribe all text from this image verbatim. Output ONLY the extracted text with no other words, no greetings, no descriptions.",
+  "candidate_think": false,
+  "preprocessing_variant": "candidate_small_image_upscaled_2x uses Lanczos resize at 2x only when the source image's largest dimension is <=600 px; larger images preserve source dimensions",
+  "normalization": "none beyond the same strip behavior as VisionModelOCREngine and PDFParser",
+  "summary": {
+    "baseline": {
+      "cases": 4,
+      "macro_cer": 1.90556,
+      "micro_cer": 1.546603,
+      "mean_wer": 2.116667,
+      "mean_keyword_recall": 0.71875,
+      "mean_latency_ms": 7647.64
+    },
+    "candidate": {
+      "cases": 4,
+      "macro_cer": 0.079101,
+      "micro_cer": 0.044234,
+      "mean_wer": 0.344445,
+      "mean_keyword_recall": 0.71875,
+      "mean_latency_ms": 2673.69
+    },
+    "candidate_small_image_upscaled_2x": {
+      "cases": 4,
+      "macro_cer": 0.047122,
+      "micro_cer": 0.033175,
+      "mean_wer": 0.316667,
+      "mean_keyword_recall": 0.71875,
+      "mean_latency_ms": 2302.14
+    }
+  },
+  "cases": [
+    {
+      "fixture_id": "ocr_clean_plate",
+      "category": "clean_printed",
+      "variants": {
+        "baseline": {
+          "reference": "TURBINE GENERATOR TG-8500\nSERIAL: SN-TG8500-2026-X\nRATED CAPACITY: 1250 KW\nOPERATING SPEED: 3600 RPM\nMAX OIL TEMP: 85 C",
+          "prediction": "TURBINE GENERATOR TG-8500  \nSERIAL: SN-TG8500-2026-X  \nRATED CAPACITY 1250 KW  \nOPERATING SPEED 3600 RPM  \nMAX OIL TEMP 85 C",
+          "substitutions": 0,
+          "deletions": 3,
+          "insertions": 8,
+          "total_edits": 11,
+          "reference_characters": 119,
+          "prediction_characters": 124,
+          "reference_words": 18,
+          "prediction_words": 18,
+          "cer": 0.092437,
+          "wer": 0.166667,
+          "keyword_recall": 1.0,
+          "latency_ms": 12948.7,
+          "errors": []
+        },
+        "candidate": {
+          "reference": "TURBINE GENERATOR TG-8500\nSERIAL: SN-TG8500-2026-X\nRATED CAPACITY: 1250 KW\nOPERATING SPEED: 3600 RPM\nMAX OIL TEMP: 85 C",
+          "prediction": "TURBINE GENERATOR TG-8500\nSERIAL: SN-TG8500-2026-X\nRATED CAPACITY 1250 KW\nOPERATING SPEED 3600 RPM\nMAXOIL TEMP 85 C",
+          "substitutions": 0,
+          "deletions": 4,
+          "insertions": 0,
+          "total_edits": 4,
+          "reference_characters": 119,
+          "prediction_characters": 115,
+          "reference_words": 18,
+          "prediction_words": 17,
+          "cer": 0.033613,
+          "wer": 0.277778,
+          "keyword_recall": 1.0,
+          "latency_ms": 1888.63,
+          "errors": []
+        },
+        "candidate_small_image_upscaled_2x": {
+          "reference": "TURBINE GENERATOR TG-8500\nSERIAL: SN-TG8500-2026-X\nRATED CAPACITY: 1250 KW\nOPERATING SPEED: 3600 RPM\nMAX OIL TEMP: 85 C",
+          "prediction": "TURBINE GENERATOR TG-8500\nSERIAL: SN-TG8500-2026-X\nRATED CAPACITY: 1250 KW\nOPERATING SPEED: 3600 RPM\nMAXOIL TEMP. 85 C",
+          "substitutions": 1,
+          "deletions": 1,
+          "insertions": 0,
+          "total_edits": 2,
+          "reference_characters": 119,
+          "prediction_characters": 118,
+          "reference_words": 18,
+          "prediction_words": 17,
+          "cer": 0.016807,
+          "wer": 0.166667,
+          "keyword_recall": 1.0,
+          "latency_ms": 2075.61,
+          "errors": []
+        }
+      }
+    },
+    {
+      "fixture_id": "ocr_ambiguous_tag",
+      "category": "ambiguous_characters",
+      "variants": {
+        "baseline": {
+          "reference": "TAG-0O1Il8B5S2Z\nVALVE-O01-B8-S5-Z2\nSER-1I0O8B",
+          "prediction": "TAG-001IBBS2Z\nVALVE-001-BB-S6-Z2\nSER-100CB",
+          "substitutions": 7,
+          "deletions": 3,
+          "insertions": 0,
+          "total_edits": 10,
+          "reference_characters": 45,
+          "prediction_characters": 42,
+          "reference_words": 3,
+          "prediction_words": 3,
+          "cer": 0.222222,
+          "wer": 1.0,
+          "keyword_recall": 0.0,
+          "latency_ms": 1345.17,
+          "errors": []
+        },
+        "candidate": {
+          "reference": "TAG-0O1Il8B5S2Z\nVALVE-O01-B8-S5-Z2\nSER-1I0O8B",
+          "prediction": "TAG-001IBBS2Z\nVALVE-001-BB-S6-22\nSER-100BB",
+          "substitutions": 8,
+          "deletions": 3,
+          "insertions": 0,
+          "total_edits": 11,
+          "reference_characters": 45,
+          "prediction_characters": 42,
+          "reference_words": 3,
+          "prediction_words": 3,
+          "cer": 0.244444,
+          "wer": 1.0,
+          "keyword_recall": 0.0,
+          "latency_ms": 1486.35,
+          "errors": []
+        },
+        "candidate_small_image_upscaled_2x": {
+          "reference": "TAG-0O1Il8B5S2Z\nVALVE-O01-B8-S5-Z2\nSER-1I0O8B",
+          "prediction": "TAG-001IIB5S2Z\nVALVE-C01-B8-S5-Z2\nSER-110C8B",
+          "substitutions": 5,
+          "deletions": 1,
+          "insertions": 0,
+          "total_edits": 6,
+          "reference_characters": 45,
+          "prediction_characters": 44,
+          "reference_words": 3,
+          "prediction_words": 3,
+          "cer": 0.133333,
+          "wer": 1.0,
+          "keyword_recall": 0.0,
+          "latency_ms": 1699.13,
+          "errors": []
+        }
+      }
+    },
+    {
+      "fixture_id": "ocr_table_telemetry",
+      "category": "tabular_grid",
+      "variants": {
+        "baseline": {
+          "reference": "PUMP_ID PRESSURE_PSI FLOW_GPM TEMP_C STATUS\nP-101 145.2 320 62.4 NOMINAL\nP-102 188.7 410 78.1 ELEVATED\nP-103 92.0 150 45.0 STANDBY",
+          "prediction": "```json\n[\n\t{\"text\": \"PUMP_ID\", \"bbox_2d\": [104, 68, 357, 99]},\n\t{\"text\": \"PRESSURE_PSI\", \"bbox_2d\": [400, 68, 652, 99]},\n\t{\"text\": \"FLOW_GPM\", \"bbox_2d\": [691, 68, 873, 99]},\n\t{\"text\": \"TEMP_C\", \"bbox_2d\": [904, 68, 959, 99]},\n\t{\"text\": \"STATUS\", \"bbox_2d\": [991, 68, 997, 99]},\n\t{\"text\": \"P-101\", \"bbox_2d\": [134, 135, 226, 166]},\n\t{\"text\": \"145.2\", \"bbox_2d\": [387, 135, 491, 166]},\n\t{\"text\": \"320\", \"bbox_2d\": [652, 135, 756, 166]},\n\t{\"text\": \"62.4\", \"bbox_2d\": [918, 135, 972, 166]},\n\t{\"text\": \"NOMINAL\", \"bbox_2d\": [104, 135, 226, 166]},\n\t{\"text\": \"P-102\", \"bbox_2d\": [134, 207, 226, 238]},\n\t{\"text\": \"188.7\", \"bbox_2d\": [387, 207, 509, 238]},\n\t{\"text\": \"410\", \"bbox_2d\": [652, 207, 756, 238]},\n\t{\"text\": \"78.1\", \"bbox_2d\": [918, 207, 972, 238]},\n\t{\"text\": \"ELEVATED\", \"bbox_2d\": [104, 207, 256, 238]},\n\t{\"text\": \"P-103\", \"bbox_2d\": [134, 279, 226, 310]},\n\t{\"text\": \"92.0\", \"bbox_2d\": [387, 279, 509, 310]},\n\t{\"text\": \"150\", \"bbox_2d\": [652, 279, 756, 310]},\n\t{\"text\": \"45.0\", \"bbox_2d\": [918, 279, 972, 310]},\n\t{\"text\": \"STANDBY\", \"bbox_2d\": [104, 279, 268, 310]}\n]\n```",
+          "substitutions": 0,
+          "deletions": 0,
+          "insertions": 945,
+          "total_edits": 945,
+          "reference_characters": 130,
+          "prediction_characters": 1075,
+          "reference_words": 20,
+          "prediction_words": 144,
+          "cer": 7.269231,
+          "wer": 7.2,
+          "keyword_recall": 1.0,
+          "latency_ms": 11026.77,
+          "errors": []
+        },
+        "candidate": {
+          "reference": "PUMP_ID PRESSURE_PSI FLOW_GPM TEMP_C STATUS\nP-101 145.2 320 62.4 NOMINAL\nP-102 188.7 410 78.1 ELEVATED\nP-103 92.0 150 45.0 STANDBY",
+          "prediction": "PUMP_ID PRESSURE_PSI FLOW_GPM TEMP_C STATUS\nP-101 145.2 320 62.4 NOMINAL\nP-102 188.7 410 78.1 ELEVATED\nP-103 92.0 150 45.0 STANDBY",
+          "substitutions": 0,
+          "deletions": 0,
+          "insertions": 0,
+          "total_edits": 0,
+          "reference_characters": 130,
+          "prediction_characters": 130,
+          "reference_words": 20,
+          "prediction_words": 20,
+          "cer": 0.0,
+          "wer": 0.0,
+          "keyword_recall": 1.0,
+          "latency_ms": 2221.73,
+          "errors": []
+        },
+        "candidate_small_image_upscaled_2x": {
+          "reference": "PUMP_ID PRESSURE_PSI FLOW_GPM TEMP_C STATUS\nP-101 145.2 320 62.4 NOMINAL\nP-102 188.7 410 78.1 ELEVATED\nP-103 92.0 150 45.0 STANDBY",
+          "prediction": "PUMP_ID PRESSURE_PSI FLOW_GPM TEMP_C STATUS\nP-101 145.2 320 62.4 NOMINAL\nP-102 188.7 410 78.1 ELEVATED\nP-103 92.0 150 45.0 STANDBY",
+          "substitutions": 0,
+          "deletions": 0,
+          "insertions": 0,
+          "total_edits": 0,
+          "reference_characters": 130,
+          "prediction_characters": 130,
+          "reference_words": 20,
+          "prediction_words": 20,
+          "cer": 0.0,
+          "wer": 0.0,
+          "keyword_recall": 1.0,
+          "latency_ms": 1900.49,
+          "errors": []
+        }
+      }
+    },
+    {
+      "fixture_id": "ocr_scanned_pdf",
+      "category": "scanned_pdf_multipage",
+      "variants": {
+        "baseline": {
+          "reference": "SOVEREIGN POWER SYSTEMS - FIELD INSPECTION LOG\nASSET: STEAM TURBINE UNIT 4\nDATE: 2026-10-15\nINSPECTOR: ID-7742\nBEARING VIBRATION: 2.4 MM/S\nEXHAUST PRESSURE: 0.08 BAR\nMAINTENANCE ACTION ITEMS:\n1. REPLACE HYDRAULIC FILTER HF-402 AT 12000 HOURS\n2. CALIBRATE GOVERNOR SENSOR GS-12\n3. RE-TORQUE CASING BOLTS TO 450 NM\nOVERALL STATUS: ACCEPTABLE",
+          "prediction": "SOVEREIGN POWER SYSTEMS - FIELD INSPECTION LOG\n\nASSET: STEAM TURBINE UNIT 4\n\nDATE: 2026-10-15\n\nINSPECTOR ID-7742\n\nBEARING VIBRATION: 2.4 MM/S\n\nEXHAUST PRESSURE 0.08 BAR\nMAINTENANCE ACTION ITEMS\n\n1. REPLACE HYDRAULIC FILTER HF-402 AT 12000 HOURS\n\n2. CALIBRATE GOVERNOR SENSORS GS-12\n\n3. RE-TORQUE CASING BOLTS TO 450 NM\n\nOVERALL STATUS ACCEPTABLE",
+          "substitutions": 1,
+          "deletions": 3,
+          "insertions": 9,
+          "total_edits": 13,
+          "reference_characters": 339,
+          "prediction_characters": 345,
+          "reference_words": 50,
+          "prediction_words": 50,
+          "cer": 0.038348,
+          "wer": 0.1,
+          "keyword_recall": 0.875,
+          "latency_ms": 5269.93,
+          "errors": []
+        },
+        "candidate": {
+          "reference": "SOVEREIGN POWER SYSTEMS - FIELD INSPECTION LOG\nASSET: STEAM TURBINE UNIT 4\nDATE: 2026-10-15\nINSPECTOR: ID-7742\nBEARING VIBRATION: 2.4 MM/S\nEXHAUST PRESSURE: 0.08 BAR\nMAINTENANCE ACTION ITEMS:\n1. REPLACE HYDRAULIC FILTER HF-402 AT 12000 HOURS\n2. CALIBRATE GOVERNOR SENSOR GS-12\n3. RE-TORQUE CASING BOLTS TO 450 NM\nOVERALL STATUS: ACCEPTABLE",
+          "prediction": "SOVEREIGN POWER SYSTEMS - FIELD INSPECTION LOG\n\nASSET: STEAM TURBINE UNIT 4\n\nDATE: 2026-10-15\n\nINSPECTOR ID-7742\n\nBEARING VIBRATION: 2.4 MM/S\n\nEXHAUST PRESSURE 0.08 BAR\nMAINTENANCE ACTION ITEMS\n\n1. REPLACE HYDRAULIC FILTER HF-402 AT 12000 HOURS\n\n2. CALIBRATE GOVERNOR SENSORS GS-12\n\n3. RE-TORQUE CASING BOLTS TO 450 NM\n\nOVERALL STATUS ACCEPTABLE",
+          "substitutions": 1,
+          "deletions": 3,
+          "insertions": 9,
+          "total_edits": 13,
+          "reference_characters": 339,
+          "prediction_characters": 345,
+          "reference_words": 50,
+          "prediction_words": 50,
+          "cer": 0.038348,
+          "wer": 0.1,
+          "keyword_recall": 0.875,
+          "latency_ms": 5098.07,
+          "errors": []
+        },
+        "candidate_small_image_upscaled_2x": {
+          "reference": "SOVEREIGN POWER SYSTEMS - FIELD INSPECTION LOG\nASSET: STEAM TURBINE UNIT 4\nDATE: 2026-10-15\nINSPECTOR: ID-7742\nBEARING VIBRATION: 2.4 MM/S\nEXHAUST PRESSURE: 0.08 BAR\nMAINTENANCE ACTION ITEMS:\n1. REPLACE HYDRAULIC FILTER HF-402 AT 12000 HOURS\n2. CALIBRATE GOVERNOR SENSOR GS-12\n3. RE-TORQUE CASING BOLTS TO 450 NM\nOVERALL STATUS: ACCEPTABLE",
+          "prediction": "SOVEREIGN POWER SYSTEMS - FIELD INSPECTION LOG\n\nASSET: STEAM TURBINE UNIT 4\n\nDATE: 2026-10-15\n\nINSPECTOR ID-7742\n\nBEARING VIBRATION: 2.4 MM/S\n\nEXHAUST PRESSURE 0.08 BAR\nMAINTENANCE ACTION ITEMS\n\n1. REPLACE HYDRAULIC FILTER HF-402 AT 12000 HOURS\n\n2. CALIBRATE GOVERNOR SENSORS GS-12\n\n3. RE-TORQUE CASING BOLTS TO 450 NM\n\nOVERALL STATUS ACCEPTABLE",
+          "substitutions": 1,
+          "deletions": 3,
+          "insertions": 9,
+          "total_edits": 13,
+          "reference_characters": 339,
+          "prediction_characters": 345,
+          "reference_words": 50,
+          "prediction_words": 50,
+          "cer": 0.038348,
+          "wer": 0.1,
+          "keyword_recall": 0.875,
+          "latency_ms": 3533.35,
+          "errors": []
+        }
+      }
+    }
+  ]
+}

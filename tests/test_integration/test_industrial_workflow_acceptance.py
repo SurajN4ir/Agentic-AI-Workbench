@@ -18,6 +18,7 @@ from pathlib import Path
 import docx
 import openpyxl
 import pytest
+from app.config import get_settings
 from app.database import get_db
 from app.identity.models import User
 from app.identity.service import create_access_token, hash_password
@@ -229,8 +230,9 @@ async def test_complete_industrial_workflow_acceptance(test_engine) -> None:
         assert xlsx_art_info["filename"] == "fleet_defect_metrics.xlsx"
 
         # Step 5: Independent Verification of Generated Files on Disk
-        gen_docx_path = Path("workspace") / session_id / "turbine_health_assessment.docx"
-        gen_xlsx_path = Path("workspace") / session_id / "fleet_defect_metrics.xlsx"
+        workspace_root = Path(get_settings().workspace_dir)
+        gen_docx_path = workspace_root / session_id / "turbine_health_assessment.docx"
+        gen_xlsx_path = workspace_root / session_id / "fleet_defect_metrics.xlsx"
 
         assert gen_docx_path.exists(), f"Word document not created on disk: {gen_docx_path}"
         assert gen_xlsx_path.exists(), f"Excel workbook not created on disk: {gen_xlsx_path}"

@@ -1,0 +1,85 @@
+{
+  "version": "1.0.0",
+  "dataset_id": "sovereign_quantitative_eval_dataset_v1",
+  "description": "Deterministic quantitative benchmark specification suite for Sovereign AI Workbench",
+  "ground_truth_file": "eval/dataset/quantitative_ground_truth.json",
+  "test_suites": {
+    "ocr_suite": {
+      "metric_types": ["CER", "WER"],
+      "fixtures": [
+        {
+          "fixture_id": "ocr_clean_plate",
+          "file_path": "eval/fixtures/ocr/clean_specification_plate.png",
+          "ground_truth_key": "clean_specification_plate.png",
+          "category": "clean_printed"
+        },
+        {
+          "fixture_id": "ocr_ambiguous_tag",
+          "file_path": "eval/fixtures/ocr/ambiguous_serial_tag.png",
+          "ground_truth_key": "ambiguous_serial_tag.png",
+          "category": "ambiguous_characters"
+        },
+        {
+          "fixture_id": "ocr_table_telemetry",
+          "file_path": "eval/fixtures/ocr/table_pump_telemetry.png",
+          "ground_truth_key": "table_pump_telemetry.png",
+          "category": "tabular_grid"
+        },
+        {
+          "fixture_id": "ocr_scanned_pdf",
+          "file_path": "eval/fixtures/ocr/scanned_turbine_inspection.pdf",
+          "ground_truth_key": "scanned_turbine_inspection.pdf",
+          "category": "scanned_pdf_multipage"
+        }
+      ]
+    },
+    "routing_suite": {
+      "metric_types": ["ConfusionMatrix", "Precision", "Recall", "F1", "MacroF1"],
+      "labels": ["rag", "code", "math", "spreadsheet", "document", "general"],
+      "test_cases": [
+        {"id": "route_rag_01", "prompt": "What is the over-speed trip limit and maximum allowable bearing vibration for the TG-8500 steam turbine?", "ground_truth_id": "route_rag_01"},
+        {"id": "route_rag_02", "prompt": "Look up the seal flush requirements for boiler feedwater pump P-102.", "ground_truth_id": "route_rag_02"},
+        {"id": "route_code_01", "prompt": "Write a python script to simulate bearing vibration dampening over 50 time steps using numpy.", "ground_truth_id": "route_code_01"},
+        {"id": "route_math_01", "prompt": "Calculate the thermal efficiency of a power plant generating 1250 kW from 4200 kJ/s heat input: 1250 / 4200 * 100.", "ground_truth_id": "route_math_01"},
+        {"id": "route_sheet_01", "prompt": "Filter the pump telemetry sheet to calculate the average flow rate for pumps with pressure over 100 psi.", "ground_truth_id": "route_sheet_01"},
+        {"id": "route_doc_01", "prompt": "Generate a downloadable PDF executive engineering summary report with audit sign-off table.", "ground_truth_id": "route_doc_01"},
+        {"id": "route_gen_01", "prompt": "Explain the general thermodynamic purpose of multistage centrifugal pumps in modern power stations.", "ground_truth_id": "route_gen_01"}
+      ]
+    },
+    "retrieval_suite": {
+      "metric_types": ["Recall@1", "Recall@3", "Recall@5", "MRR"],
+      "corpus_fixtures": [
+        "eval/fixtures/corpus/turbine_operating_manual.txt",
+        "eval/fixtures/corpus/pump_maintenance_spec.txt",
+        "eval/fixtures/corpus/unrelated_facility_memo.txt"
+      ],
+      "queries": [
+        {"id": "ret_rag_torque", "query": "What is the specified tightening torque for the TG-8500 turbine casing studs?", "ground_truth_id": "ret_rag_torque"},
+        {"id": "ret_rag_oil_temp", "query": "What is the minimum oil supply temperature before rolling the TG-8500 turbine?", "ground_truth_id": "ret_rag_oil_temp"},
+        {"id": "ret_rag_pump_pressure", "query": "What is the nominal and maximum rated discharge pressure for boiler feedwater pump P-101?", "ground_truth_id": "ret_rag_pump_pressure"},
+        {"id": "ret_rag_seal_flush", "query": "What is the minimum recommended flow rate for the mechanical seal flush on boiler feedwater pump P-102?", "ground_truth_id": "ret_rag_seal_flush"},
+        {"id": "ret_rag_absent_gas_igniter", "query": "What is the spark ignition electrode gap and primary fuel nozzle diameter for the gas turbine combustor?", "ground_truth_id": "ret_rag_absent_gas_igniter"}
+      ]
+    },
+    "grounding_suite": {
+      "metric_types": ["Accuracy", "Precision", "Recall", "Specificity", "F1", "FalseAcceptanceRate"],
+      "test_cases": [
+        {"id": "claim_01_torque_true", "ground_truth_id": "claim_01_torque_true"},
+        {"id": "claim_02_lube_interval_true", "ground_truth_id": "claim_02_lube_interval_true"},
+        {"id": "claim_03_pump_pressure_true", "ground_truth_id": "claim_03_pump_pressure_true"},
+        {"id": "claim_04_torque_conflicting", "ground_truth_id": "claim_04_torque_conflicting"},
+        {"id": "claim_05_vibration_conflicting", "ground_truth_id": "claim_05_vibration_conflicting"},
+        {"id": "claim_06_ceramic_fabrication", "ground_truth_id": "claim_06_ceramic_fabrication"},
+        {"id": "claim_07_absent_component", "ground_truth_id": "claim_07_absent_component"}
+      ]
+    },
+    "tool_suite": {
+      "metric_types": ["NumericalAccuracy", "ToleranceMatch"],
+      "math_tasks": [
+        {"id": "tool_math_01_efficiency", "ground_truth_id": "tool_math_01_efficiency"},
+        {"id": "tool_math_02_torque_conversion", "ground_truth_id": "tool_math_02_torque_conversion"},
+        {"id": "tool_math_03_flow_ratio", "ground_truth_id": "tool_math_03_flow_ratio"}
+      ]
+    }
+  }
+}

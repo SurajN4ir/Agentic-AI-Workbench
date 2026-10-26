@@ -18,7 +18,7 @@ import type { CitationDetail } from '../types/workbench'
 interface CitationInspectorDrawerProps {
   citation: CitationDetail | null
   onClose: () => void
-  onOpenInKnowledgeHub?: (documentId?: string | null, filename?: string) => void
+  onOpenInKnowledgeHub?: (documentId?: string | null, filename?: string, chunkId?: string | null) => void
 }
 
 export const CitationInspectorDrawer: React.FC<CitationInspectorDrawerProps> = ({
@@ -50,7 +50,7 @@ export const CitationInspectorDrawer: React.FC<CitationInspectorDrawerProps> = (
       return (
         <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800 text-xs font-mono font-medium">
           <CheckCircle2 className="h-3.5 w-3.5" />
-          VERIFIED GROUNDED
+          SOURCE CHECKS PASSED
         </span>
       )
     }
@@ -134,7 +134,7 @@ export const CitationInspectorDrawer: React.FC<CitationInspectorDrawerProps> = (
               {onOpenInKnowledgeHub && (
                 <button
                   type="button"
-                  onClick={() => onOpenInKnowledgeHub(citation.document_id, citation.source_file)}
+                  onClick={() => onOpenInKnowledgeHub(citation.document_id, citation.source_file, citation.chunk_id)}
                   className="px-2.5 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-white text-[11px] font-mono flex items-center gap-1.5 transition-colors border border-neutral-700"
                 >
                   <ExternalLink className="h-3 w-3 text-neutral-400" />
@@ -162,7 +162,7 @@ export const CitationInspectorDrawer: React.FC<CitationInspectorDrawerProps> = (
               ) : (
                 <XCircle className="h-3.5 w-3.5 text-red-400" />
               )}
-              Deterministic Grounding Verdict
+              Deterministic Evidence Checks
             </div>
             <p className="text-xs font-mono leading-relaxed">{citation.reason}</p>
           </div>
@@ -282,25 +282,38 @@ export const CitationInspectorDrawer: React.FC<CitationInspectorDrawerProps> = (
                 <Layers className="h-3 w-3 text-neutral-400" />
                 Retrieved Knowledge Hub Passage
               </span>
-              {citation.chunk_content && (
-                <button
-                  type="button"
-                  onClick={handleCopyChunk}
-                  className="text-[10px] font-mono text-neutral-400 hover:text-white flex items-center gap-1 transition-colors"
-                >
-                  {copied ? (
-                    <>
-                      <Check className="h-3 w-3 text-emerald-400" />
-                      Copied
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="h-3 w-3" />
-                      Copy text
-                    </>
-                  )}
-                </button>
-              )}
+              <div className="flex items-center gap-3">
+                {citation.chunk_id && onOpenInKnowledgeHub && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenInKnowledgeHub(citation.document_id, citation.source_file, citation.chunk_id)}
+                    className="text-[10px] font-mono text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors"
+                    title="Open this exact chunk in the Knowledge Hub inspector"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                    Inspect in Hub
+                  </button>
+                )}
+                {citation.chunk_content && (
+                  <button
+                    type="button"
+                    onClick={handleCopyChunk}
+                    className="text-[10px] font-mono text-neutral-400 hover:text-white flex items-center gap-1 transition-colors"
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="h-3 w-3 text-emerald-400" />
+                        Copied
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-3 w-3" />
+                        Copy text
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
             </div>
 
             {citation.chunk_content ? (
@@ -315,18 +328,42 @@ export const CitationInspectorDrawer: React.FC<CitationInspectorDrawerProps> = (
           </div>
 
           {/* Audit Provenance Identifiers */}
-          <div className="p-3 rounded-xl bg-neutral-900/40 border border-neutral-800/80 font-mono text-[10px] text-neutral-400 space-y-1">
+          <div className="p-3 rounded-xl bg-neutral-900/40 border border-neutral-800/80 font-mono text-[10px] text-neutral-400 space-y-1.5">
             <div className="flex items-center justify-between truncate">
               <span className="text-neutral-500 flex items-center gap-1">
                 <Database className="h-3 w-3" /> Document ID:
               </span>
-              <span className="text-neutral-300 select-all">{citation.document_id || 'unindexed'}</span>
+              {citation.document_id && onOpenInKnowledgeHub ? (
+                <button
+                  type="button"
+                  onClick={() => onOpenInKnowledgeHub(citation.document_id, citation.source_file, citation.chunk_id)}
+                  className="text-blue-400 hover:text-blue-300 hover:underline select-all flex items-center gap-1 font-mono text-[10px]"
+                  title="Inspect document chunks in Knowledge Hub"
+                >
+                  <span>{citation.document_id}</span>
+                  <ExternalLink className="h-2.5 w-2.5" />
+                </button>
+              ) : (
+                <span className="text-neutral-300 select-all">{citation.document_id || 'unindexed'}</span>
+              )}
             </div>
             <div className="flex items-center justify-between truncate">
               <span className="text-neutral-500 flex items-center gap-1">
                 <Hash className="h-3 w-3" /> Chunk ID:
               </span>
-              <span className="text-neutral-300 select-all">{citation.chunk_id || 'unindexed'}</span>
+              {citation.chunk_id && onOpenInKnowledgeHub ? (
+                <button
+                  type="button"
+                  onClick={() => onOpenInKnowledgeHub(citation.document_id, citation.source_file, citation.chunk_id)}
+                  className="text-blue-400 hover:text-blue-300 hover:underline select-all flex items-center gap-1 font-mono text-[10px]"
+                  title="Inspect single chunk details in Knowledge Hub"
+                >
+                  <span>{citation.chunk_id}</span>
+                  <ExternalLink className="h-2.5 w-2.5" />
+                </button>
+              ) : (
+                <span className="text-neutral-300 select-all">{citation.chunk_id || 'unindexed'}</span>
+              )}
             </div>
           </div>
         </div>

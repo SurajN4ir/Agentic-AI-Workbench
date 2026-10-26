@@ -87,7 +87,11 @@ async def test_real_agent_grounded_rag_workflow(
     res = await service.run(req, user=test_admin_user, db=db_session)
     tools_used = [t.get("tool_name") for t in res.tool_results]
     assert "rag_search" in tools_used
-    assert any(num in res.response for num in ["78.5", "80"])
+    assert "78.5" in res.response, (
+        "Live agent response omitted the synthetic temperature fact. "
+        f"Response={res.response!r}; ungrounded={res.ungrounded_citations!r}; "
+        f"verified={res.verified_citations!r}; tool_results={res.tool_results!r}"
+    )
     assert any(term in res.response for term in ["Source", "RS-88", "reactor_cooling_standard"])
 
 
@@ -107,39 +111,20 @@ async def test_real_agent_insufficient_evidence_refusal(
     )
 
     res = await service.run(req, user=test_admin_user, db=db_session)
-    # The agent must state insufficient evidence rather than fabricating a fake manual or schedule
-    response_lower = res.response.lower()
-    evidence_missing_indicators = [
-        "insufficient",
-        "no matching",
-        "could not find",
-        "couldn't find",
-        "could not retrieve",
-        "couldn't retrieve",
-        "not found",
-        "no information",
-        "unable to find",
-        "no internal",
-        "not available",
-        "no documents",
-        "cannot find",
-        "cannot retrieve",
-        "no record",
-        "does not mention",
-        "did not find",
-        "didn't find",
-        "no results",
-        "no data",
-        "not contain",
-        "no mention",
-        "not locate",
-        "no relevant",
-        "no schedule",
-        "does not exist",
-        "lack of",
-        "not documented",
-        "not readily available",
+    # Verify the deterministic control path, rather than matching model-specific refusal wording.
+    rag_results = [
+        tool.get("data", {}).get("results")
+        for tool in res.tool_results
+        if tool.get("tool_name") == "rag_search"
     ]
-    assert any(ind in response_lower for ind in evidence_missing_indicators)
-    # Assert it does NOT hallucinate a made-up T-9999 manual citation
+    assert rag_results, "the agent must execute RAG for an internal-document request"
+    assert all(not results for results in rag_results), "the synthetic test database should have no matching evidence"
+
+    response_lower = res.response.lower()
+    assert "could not find relevant information in the internal knowledge base" in response_lower
+    assert "[source:" not in response_lower
+    assert res.citations_verified is False
+    assert res.verified_citations == []
+    assert res.citation_details == []
+    # Model-written references and claims from this request must not survive sanitation.
     assert "T-9999_manual.pdf" not in res.response

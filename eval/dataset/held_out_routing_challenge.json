@@ -1,0 +1,300 @@
+{
+  "version": "1.0.0",
+  "dataset_id": "held_out_routing_challenge_v1",
+  "created_at": "2026-10-22T23:15:00Z",
+  "description": "Independently authored 35-case held-out benchmark for evaluating TaskRouter generalization across 7 categories.",
+  "frozen": true,
+  "categories": ["rag", "code", "math", "spreadsheet", "document", "ocr", "general"],
+  "test_cases": [
+    {
+      "id": "heldout_rag_01",
+      "prompt": "What are the recommended bearing lubrication intervals according to the equipment manual?",
+      "file_metadata": null,
+      "expected_category": "rag",
+      "domain": "industrial_kb",
+      "note": "Direct inquiry referencing equipment manual"
+    },
+    {
+      "id": "heldout_rag_02",
+      "prompt": "Retrieve the maximum allowable exhaust temperature from the gas turbine specifications.",
+      "file_metadata": null,
+      "expected_category": "rag",
+      "domain": "industrial_kb",
+      "note": "Extraction request targeting technical specifications"
+    },
+    {
+      "id": "heldout_rag_03",
+      "prompt": "Look up the safety shutdown sequence described in the plant emergency SOP.",
+      "file_metadata": null,
+      "expected_category": "rag",
+      "domain": "industrial_kb",
+      "note": "Standard 'look up' phrase on standard operating procedure"
+    },
+    {
+      "id": "heldout_rag_04",
+      "prompt": "According to the ISO 10816 standards doc, what vibration severity zone does 4.2 mm/s fall into?",
+      "file_metadata": null,
+      "expected_category": "rag",
+      "domain": "standards_kb",
+      "note": "Standards inquiry with numeric parameter referencing doc"
+    },
+    {
+      "id": "heldout_rag_05",
+      "prompt": "Find the manufacturer tolerance limits for rotor shaft axial displacement in the technical documentation.",
+      "file_metadata": null,
+      "expected_category": "rag",
+      "domain": "industrial_kb",
+      "note": "Tolerance lookup referencing technical documentation"
+    },
+    {
+      "id": "heldout_code_01",
+      "prompt": "Write a Python script using pandas to compute a rolling 24-hour moving average.",
+      "file_metadata": null,
+      "expected_category": "code",
+      "domain": "data_engineering",
+      "note": "Direct code authoring request referencing Python and pandas"
+    },
+    {
+      "id": "heldout_code_02",
+      "prompt": "Debug this IndexError: list index out of range in my binary search implementation.",
+      "file_metadata": null,
+      "expected_category": "code",
+      "domain": "algorithms",
+      "note": "Direct debugging request containing error traceback"
+    },
+    {
+      "id": "heldout_code_03",
+      "prompt": "Refactor this SQL query to avoid duplicate rows and optimize the join order.",
+      "file_metadata": null,
+      "expected_category": "code",
+      "domain": "database",
+      "note": "Refactoring request on database query"
+    },
+    {
+      "id": "heldout_code_04",
+      "prompt": "Can you optimize this nested loop in my data ingestion pipeline to run in O(N) time?",
+      "file_metadata": null,
+      "expected_category": "code",
+      "domain": "algorithms",
+      "note": "Algorithmic optimization request"
+    },
+    {
+      "id": "heldout_code_05",
+      "prompt": "Write a pytest unit test function verifying that divide(a, b) raises ZeroDivisionError when b=0.",
+      "file_metadata": null,
+      "expected_category": "code",
+      "domain": "testing",
+      "note": "Unit test authoring request"
+    },
+    {
+      "id": "heldout_math_01",
+      "prompt": "Calculate the Carnot efficiency of a heat engine operating between 550 K and 300 K.",
+      "file_metadata": null,
+      "expected_category": "math",
+      "domain": "thermodynamics",
+      "note": "Physics calculation with explicit temperatures"
+    },
+    {
+      "id": "heldout_math_02",
+      "prompt": "Compute the pressure drop in a 50m pipe with Darcy friction factor 0.02, density 1000 kg/m3, and velocity 3 m/s.",
+      "file_metadata": null,
+      "expected_category": "math",
+      "domain": "fluid_dynamics",
+      "note": "Fluid mechanics formula evaluation"
+    },
+    {
+      "id": "heldout_math_03",
+      "prompt": "Solve the quadratic equation 3*x**2 - 14*x + 8 = 0.",
+      "file_metadata": null,
+      "expected_category": "math",
+      "domain": "algebra",
+      "note": "Pure algebraic equation solving"
+    },
+    {
+      "id": "heldout_math_04",
+      "prompt": "What is the Reynolds number for water flow with velocity 1.8 m/s, diameter 0.05 m, and kinematic viscosity 1e-6 m2/s?",
+      "file_metadata": null,
+      "expected_category": "math",
+      "domain": "fluid_dynamics",
+      "note": "Engineering parameter calculation without spreadsheet or code"
+    },
+    {
+      "id": "heldout_math_05",
+      "prompt": "Evaluate the integral of (4*x**3 - 6*x**2 + 2*x) from x=0 to x=2.",
+      "file_metadata": null,
+      "expected_category": "math",
+      "domain": "calculus",
+      "note": "Definite integral calculation"
+    },
+    {
+      "id": "heldout_sheet_01",
+      "prompt": "Filter the telemetry spreadsheet to find all rows where bearing temperature exceeds 90 C.",
+      "file_metadata": null,
+      "expected_category": "spreadsheet",
+      "domain": "tabular_analytics",
+      "note": "Tabular filtering on spreadsheet"
+    },
+    {
+      "id": "heldout_sheet_02",
+      "prompt": "In the maintenance log sheet, count how many work orders are marked as pending.",
+      "file_metadata": null,
+      "expected_category": "spreadsheet",
+      "domain": "tabular_analytics",
+      "note": "Spreadsheet query with count aggregation"
+    },
+    {
+      "id": "heldout_sheet_03",
+      "prompt": "Compute the column average of flow rate and standard deviation in the CSV export.",
+      "file_metadata": null,
+      "expected_category": "spreadsheet",
+      "domain": "tabular_analytics",
+      "note": "Statistical aggregation over CSV tabular data"
+    },
+    {
+      "id": "heldout_sheet_04",
+      "prompt": "Sort the boiler sensor table by pressure descending and return the top 5 highest readings.",
+      "file_metadata": null,
+      "expected_category": "spreadsheet",
+      "domain": "tabular_analytics",
+      "note": "Sorting and filtering structured tabular data"
+    },
+    {
+      "id": "heldout_sheet_05",
+      "prompt": "Aggregate total fuel consumption by turbine ID from the telemetry sheet.",
+      "file_metadata": null,
+      "expected_category": "spreadsheet",
+      "domain": "tabular_analytics",
+      "note": "Grouping and summation over sheet"
+    },
+    {
+      "id": "heldout_doc_01",
+      "prompt": "Generate a formal PDF inspection report summarizing bearing wear and oil analysis for Unit 3.",
+      "file_metadata": null,
+      "expected_category": "document",
+      "domain": "reporting",
+      "note": "Authoring formal PDF report"
+    },
+    {
+      "id": "heldout_doc_02",
+      "prompt": "Create an executive summary report in PDF format regarding last week's turbine vibration test.",
+      "file_metadata": null,
+      "expected_category": "document",
+      "domain": "reporting",
+      "note": "Compiling PDF executive summary"
+    },
+    {
+      "id": "heldout_doc_03",
+      "prompt": "Draft a formal engineering compliance brief documenting the annual emissions audit findings.",
+      "file_metadata": null,
+      "expected_category": "document",
+      "domain": "reporting",
+      "note": "Drafting engineering compliance brief"
+    },
+    {
+      "id": "heldout_doc_04",
+      "prompt": "Compile an equipment handover dossier with maintenance history for the shift supervisor.",
+      "file_metadata": null,
+      "expected_category": "document",
+      "domain": "reporting",
+      "note": "Compiling handover dossier document"
+    },
+    {
+      "id": "heldout_doc_05",
+      "prompt": "Export a PDF summary report highlighting overdue preventive maintenance tasks.",
+      "file_metadata": null,
+      "expected_category": "document",
+      "domain": "reporting",
+      "note": "Exporting structured PDF summary report"
+    },
+    {
+      "id": "heldout_ocr_01",
+      "prompt": "Extract and transcribe all text from this scanned nameplate photo.",
+      "file_metadata": [
+        {"filename": "nameplate.png", "extension": ".png", "size_bytes": 102400, "is_image": true, "is_document": false, "is_spreadsheet": false, "is_code": false, "is_supported": true}
+      ],
+      "expected_category": "ocr",
+      "domain": "multimodal_vision",
+      "note": "Image attachment with explicit text transcription intent"
+    },
+    {
+      "id": "heldout_ocr_02",
+      "prompt": "Read the pressure gauge numbers and units shown on this analog dial.",
+      "file_metadata": [
+        {"filename": "analog_gauge.jpg", "extension": ".jpg", "size_bytes": 85400, "is_image": true, "is_document": false, "is_spreadsheet": false, "is_code": false, "is_supported": true}
+      ],
+      "expected_category": "ocr",
+      "domain": "multimodal_vision",
+      "note": "Image attachment with reading intent"
+    },
+    {
+      "id": "heldout_ocr_03",
+      "prompt": "Transcribe the handwritten maintenance notes on this inspection sheet.",
+      "file_metadata": [
+        {"filename": "notes.png", "extension": ".png", "size_bytes": 120400, "is_image": true, "is_document": false, "is_spreadsheet": false, "is_code": false, "is_supported": true}
+      ],
+      "expected_category": "ocr",
+      "domain": "multimodal_vision",
+      "note": "Image attachment with transcription intent"
+    },
+    {
+      "id": "heldout_ocr_04",
+      "prompt": "Read the serial number label on this valve tag.",
+      "file_metadata": [
+        {"filename": "valve_tag.png", "extension": ".png", "size_bytes": 64200, "is_image": true, "is_document": false, "is_spreadsheet": false, "is_code": false, "is_supported": true}
+      ],
+      "expected_category": "ocr",
+      "domain": "multimodal_vision",
+      "note": "Image attachment with serial label reading intent"
+    },
+    {
+      "id": "heldout_ocr_05",
+      "prompt": "Extract the tabular values and read table from this scanned calibration report.",
+      "file_metadata": [
+        {"filename": "calibration.pdf", "extension": ".pdf", "size_bytes": 254200, "is_image": false, "is_document": true, "is_spreadsheet": false, "is_code": false, "is_supported": true}
+      ],
+      "expected_category": "ocr",
+      "domain": "multimodal_ocr",
+      "note": "PDF attachment with explicit OCR intent ('read table')"
+    },
+    {
+      "id": "heldout_gen_01",
+      "prompt": "Hello! What can you help me with in this workbench today?",
+      "file_metadata": null,
+      "expected_category": "general",
+      "domain": "conversational",
+      "note": "Standard conversational greeting"
+    },
+    {
+      "id": "heldout_gen_02",
+      "prompt": "Explain the theoretical thermodynamic differences between the Brayton cycle and Rankine cycle.",
+      "file_metadata": null,
+      "expected_category": "general",
+      "domain": "conceptual_physics",
+      "note": "Conceptual explanation question without code, docgen, or calculation request"
+    },
+    {
+      "id": "heldout_gen_03",
+      "prompt": "What are the common failure modes of centrifugal impellers?",
+      "file_metadata": null,
+      "expected_category": "general",
+      "domain": "engineering_qa",
+      "note": "General engineering question without specific document lookup signals"
+    },
+    {
+      "id": "heldout_gen_04",
+      "prompt": "Can you explain how neural networks learn without showing any code or formulas?",
+      "file_metadata": null,
+      "expected_category": "general",
+      "domain": "negative_example",
+      "note": "Negative example explicitly requesting NO code or formulas"
+    },
+    {
+      "id": "heldout_gen_05",
+      "prompt": "Tell me a joke about mechanical engineers working on steam turbines.",
+      "file_metadata": null,
+      "expected_category": "general",
+      "domain": "creative",
+      "note": "Creative conversational prompt"
+    }
+  ]
+}

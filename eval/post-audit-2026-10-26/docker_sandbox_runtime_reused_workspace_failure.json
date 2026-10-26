@@ -1,0 +1,30 @@
+{
+  "date": "2026-10-26",
+  "record_type": "preserved post-repair live failure using a reused synthetic session",
+  "command": ".venv\\Scripts\\python.exe scripts\\verify_docker_sandbox_runtime.py",
+  "environment": {
+    "docker_engine": "29.7.2",
+    "image": "python:3.11-slim",
+    "inputs": "synthetic Python only",
+    "workspace_session": "runtime-verification"
+  },
+  "summary": {
+    "passed": 10,
+    "total": 11,
+    "failed": ["allowed_execution"]
+  },
+  "findings": {
+    "user": "1000:1000",
+    "network_mode": "none",
+    "cap_drop": ["ALL"],
+    "security_opt": ["no-new-privileges:true"],
+    "memory_bytes": 536870912,
+    "nano_cpus": 2000000000,
+    "pids_limit": 50,
+    "denied_operations": "passed: setuid(0), /etc/shadow read, and public-IP socket attempt denied",
+    "timeout": "passed and container removed",
+    "cleanup": "passed",
+    "workspace_write": "failed in the session directory previously written by the initial root-container run"
+  },
+  "interpretation": "The test reused a directory from the root-user run. The final harness uses a unique clean synthetic session and passes 11/11. No existing workspace was changed or cleaned up; legacy output permissions remain a migration consideration."
+}

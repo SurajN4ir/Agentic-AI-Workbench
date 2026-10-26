@@ -1,0 +1,241 @@
+{
+  "timestamp": "2026-10-26T10:22:44.721Z",
+  "mode": "browser_driven_chrome_playwright",
+  "base_url": "http://127.0.0.1:3000",
+  "fixture": "eval/fixtures/corpus/turbine_operating_manual.txt",
+  "checks": [
+    {
+      "id": "browser_root_and_health",
+      "status": "PASS",
+      "detail": "Chrome loaded the UI from loopback; API and database health indicators rendered."
+    },
+    {
+      "id": "browser_login",
+      "status": "PASS",
+      "detail": "Synthetic analyst authenticated through the browser login form."
+    },
+    {
+      "id": "browser_document_upload",
+      "status": "PASS",
+      "detail": "Browser file input submitted the synthetic manual; HTTP 200."
+    },
+    {
+      "id": "browser_knowledge_hub_chunk_inspection",
+      "status": "PASS",
+      "detail": "Opened the uploaded document chunk inspector and saw chunk detail content."
+    },
+    {
+      "id": "browser_rag_query",
+      "status": "PASS",
+      "detail": "Hybrid search completed from UI; HTTP 200, retrieved the synthetic 450 Nm fact."
+    },
+    {
+      "id": "browser_agent_rag_citation",
+      "status": "PASS",
+      "detail": "Agent stream HTTP 200; grounded badge=true; source=true; 450 Nm=true."
+    },
+    {
+      "id": "browser_citation_inspector",
+      "status": "PASS",
+      "detail": "Clicked the cited source and opened its verified grounding inspector."
+    },
+    {
+      "id": "browser_citation_navigation",
+      "status": "PASS",
+      "detail": "Citation navigation returned to the matching Knowledge Hub document."
+    },
+    {
+      "id": "browser_docx_generation",
+      "status": "PASS",
+      "detail": "Agent UI stream HTTP 200; expected file listed=true."
+    },
+    {
+      "id": "browser_xlsx_generation",
+      "status": "PASS",
+      "detail": "Agent UI stream HTTP 200; expected file listed=true."
+    },
+    {
+      "id": "browser_download_docx",
+      "status": "PASS",
+      "detail": "Browser download completed for browser_demo_report.docx."
+    },
+    {
+      "id": "browser_download_xlsx",
+      "status": "PASS",
+      "detail": "Browser download completed for browser_demo_metrics.xlsx."
+    },
+    {
+      "id": "browser_console_errors",
+      "status": "PASS",
+      "detail": "No uncaught browser page errors."
+    }
+  ],
+  "browser_api_responses": [
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/login",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/auth/me",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/knowledge/documents",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/knowledge/collections",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/knowledge/documents",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/knowledge/collections",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/knowledge/upload",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/knowledge/documents",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/knowledge/collections",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/knowledge/documents/98d012d7-4808-4672-9010-4759e60d8593/chunks",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/knowledge/search",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/agent/stream",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/artifacts/session_c52ipl7",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/knowledge/documents",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/knowledge/chunks/635efefd-ca4d-468e-ac62-1817824da636",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/knowledge/collections",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/knowledge/documents",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/knowledge/chunks/635efefd-ca4d-468e-ac62-1817824da636",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/knowledge/collections",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/knowledge/chunks/635efefd-ca4d-468e-ac62-1817824da636",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/knowledge/documents/98d012d7-4808-4672-9010-4759e60d8593/chunks",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/agent/stream",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/artifacts/session_c52ipl7",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/agent/stream",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/artifacts/session_c52ipl7",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/artifacts/session_c52ipl7/browser_demo_report.docx",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/artifacts/session_c52ipl7/browser_demo_metrics.xlsx",
+      "status": 200
+    }
+  ],
+  "screenshots": [
+    "verified-final-explicit-docx-2026-10-26-browser-00-sign-in.png",
+    "verified-final-explicit-docx-2026-10-26-browser-01-authenticated.png",
+    "verified-final-explicit-docx-2026-10-26-browser-02-uploaded.png",
+    "verified-final-explicit-docx-2026-10-26-browser-03-chunk-inspector.png",
+    "verified-final-explicit-docx-2026-10-26-browser-04-rag-search.png",
+    "verified-final-explicit-docx-2026-10-26-browser-05-agent-citation.png",
+    "verified-final-explicit-docx-2026-10-26-browser-06-citation-navigation.png",
+    "verified-final-explicit-docx-2026-10-26-browser-docx_generation.png",
+    "verified-final-explicit-docx-2026-10-26-browser-xlsx_generation.png",
+    "verified-final-explicit-docx-2026-10-26-browser-08-final-artifacts.png"
+  ],
+  "downloaded_files": [
+    {
+      "filename": "browser_demo_report.docx",
+      "size_bytes": 36818,
+      "saved_to": "eval/post-audit-2026-10-26-completion/downloads/browser_demo_report.docx"
+    },
+    {
+      "filename": "browser_demo_metrics.xlsx",
+      "size_bytes": 5131,
+      "saved_to": "eval/post-audit-2026-10-26-completion/downloads/browser_demo_metrics.xlsx"
+    }
+  ],
+  "page_errors": [],
+  "summary": {
+    "passed": 13,
+    "failed": 0,
+    "total": 13
+  },
+  "status": "PASS"
+}

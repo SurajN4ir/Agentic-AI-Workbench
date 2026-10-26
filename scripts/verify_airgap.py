@@ -238,7 +238,7 @@ def check_secrets_and_git_hygiene() -> CheckResult:
 
 
 def check_docker_compose() -> CheckResult:
-    """Verify docker-compose binds only to 127.0.0.1 and avoids hardcoded credentials."""
+    """Verify localhost-only ports, no hardcoded credentials, and Ollama cloud disabled."""
     compose_file = PROJECT_ROOT / "docker-compose.yml"
     if not compose_file.exists():
         return CheckResult("Docker Compose Profile", False, "docker-compose.yml not found")
@@ -277,13 +277,17 @@ def check_docker_compose() -> CheckResult:
         if "POSTGRES_PASSWORD:" in line and "${" not in line:
             issues.append("Hardcoded POSTGRES_PASSWORD detected in docker-compose.yml")
 
+    ollama_service = content.split("  ollama:", maxsplit=1)[-1].split("  # ─── Backend API", maxsplit=1)[0]
+    if not re.search(r"OLLAMA_NO_CLOUD:\s*\$\{OLLAMA_NO_CLOUD:-1\}", ollama_service):
+        issues.append("Ollama cloud features are not disabled in the Compose service")
+
     if issues:
         return CheckResult("Docker Compose Profile", False, "; ".join(issues))
 
     return CheckResult(
         "Docker Compose Profile",
         True,
-        "All exposed ports explicitly bound to 127.0.0.1; credentials passed via environment variables.",
+        "Ports bind to 127.0.0.1, credentials use environment variables, and Ollama cloud features are disabled.",
     )
 
 

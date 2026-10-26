@@ -87,4 +87,5 @@ class AgentRunResponse(BaseModel):
     verified_citations: list[str] = Field(default_factory=list)
     ungrounded_citations: list[str] = Field(default_factory=list)
     citation_details: list[CitationDetail] = Field(default_factory=list)
+    evidence_fallback_used: bool = False
 

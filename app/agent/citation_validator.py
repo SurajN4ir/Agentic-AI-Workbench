@@ -13,7 +13,6 @@ import logging
 import re
 from dataclasses import dataclass, field
 from enum import Enum
-from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger("sovereign.agent.citation_validator")
@@ -22,6 +21,7 @@ logger = logging.getLogger("sovereign.agent.citation_validator")
 class CitationSupportStatus(str, Enum):
     SUPPORTED = "SUPPORTED"
     UNSUPPORTED_NUMERIC = "UNSUPPORTED_NUMERIC"
+    FABRICATED_QUOTE = "FABRICATED_QUOTE"
     FABRICATED_SOURCE = "FABRICATED_SOURCE"
     FABRICATED_PAGE = "FABRICATED_PAGE"
     EMPTY_RETRIEVAL = "EMPTY_RETRIEVAL"
@@ -91,6 +91,21 @@ class CitationValidator:
         r"\[(?:Source(?:\s+\d+)?:?\s*)?([a-zA-Z0-9_\-\.]+\.(?:pdf|docx|xlsx|csv|txt|png|jpg|jpeg|webp|tiff|bmp))(?:\s*[,|]\s*(?:Page|p\.?):?\s*(\d+))?(?:[^\]]*)?\]",
         re.IGNORECASE,
     )
+    REFERENCE_ID_PATTERN = re.compile(
+        r"\[(?:Source|Document|Chunk)\s+ID\s*:\s*([^\]]+)\]",
+        re.IGNORECASE,
+    )
+    QUOTED_TEXT_PATTERN = re.compile(r'[\"“]([^\"”]+)[\"”]')
+    CLAIM_TOKEN_PATTERN = re.compile(r"[a-zA-Z][a-zA-Z0-9_-]{2,}")
+    CLAIM_STOP_WORDS = {
+        "about", "according", "after", "also", "and", "are", "based", "because",
+        "before", "being", "between", "both", "can", "could", "does", "document",
+        "documents", "each", "from", "has", "have", "into", "its", "manual", "more",
+        "not", "only", "other", "our", "over", "page", "reference", "report", "shall",
+        "should", "source", "specifies", "states", "that", "the", "their", "there", "these",
+        "they", "this", "those", "through", "under", "using", "was", "were", "what", "when",
+        "where", "which", "while", "with", "would",
+    }
 
     NUM_PATTERN = re.compile(r"\b\d+(?:\.\d+)?%?\b")
 
@@ -106,18 +121,21 @@ class CitationValidator:
         return tokens
 
     def extract_evidence_chunks(self, tool_results: list[dict[str, Any]]) -> list[EvidenceChunk]:
-        """Extracts structured evidence chunks from RAG and document tool outputs."""
+        """Extract only structured chunks returned by this request's RAG operation."""
         chunks: list[EvidenceChunk] = []
 
         for res in tool_results:
+            tool_name = res.get("tool_name") or res.get("tool")
+            if tool_name != "rag_search":
+                continue
             data = res.get("data")
-            has_structured_chunks = False
             if isinstance(data, dict):
                 results = data.get("results")
                 if isinstance(results, list):
                     for item in results:
                         if isinstance(item, dict):
-                            src = str(item.get("source") or item.get("filename") or "").strip().lower()
+                            src_raw = str(item.get("source") or item.get("filename") or "").strip()
+                            src = src_raw.replace("\\", "/").rsplit("/", 1)[-1].casefold()
                             page = item.get("page")
                             page_int = int(page) if page is not None and str(page).isdigit() else None
                             content = str(item.get("content") or "")
@@ -133,7 +151,6 @@ class CitationValidator:
                             raw_meta = item.get("metadata")
                             meta: dict[str, Any] = dict(raw_meta) if isinstance(raw_meta, dict) else {}
                             if src and content:
-                                has_structured_chunks = True
                                 chunks.append(
                                     EvidenceChunk(
                                         source=src,
@@ -153,24 +170,33 @@ class CitationValidator:
                                     )
                                 )
 
-            # Only fallback to scanning output_str if structured results were not present
-            if not has_structured_chunks:
-                output_str = str(res.get("output", ""))
-                if "[Source" in output_str:
-                    for match in self.CITATION_PATTERN.finditer(output_str):
-                        src = match.group(1).strip().lower()
-                        page = match.group(2) if len(match.groups()) >= 2 else None
-                        page_int = int(page) if page and page.isdigit() else None
-                        chunks.append(
-                            EvidenceChunk(
-                                source=src,
-                                page=page_int,
-                                content=output_str,
-                                numbers=self.extract_numbers(output_str),
-                            )
-                        )
-
         return chunks
+
+    @classmethod
+    def _claim_tokens(cls, text: str) -> set[str]:
+        """Return informative lexical tokens for conservative claim/evidence linkage."""
+        return {
+            token.casefold()
+            for token in cls.CLAIM_TOKEN_PATTERN.findall(text)
+            if token.casefold() not in cls.CLAIM_STOP_WORDS
+        }
+
+    @classmethod
+    def _claim_has_lexical_support(cls, claim: str, evidence: str) -> bool:
+        """Reject citations with no meaningful subject overlap in retrieved text.
+
+        This is a deterministic relevance screen, not a semantic entailment proof.
+        """
+        claim_tokens = cls._claim_tokens(claim)
+        evidence_tokens = cls._claim_tokens(evidence)
+        if not claim_tokens:
+            return False
+        overlap = len(claim_tokens & evidence_tokens)
+        return overlap > 0 and overlap / len(claim_tokens) >= 0.5
+
+    @staticmethod
+    def _normalized_quote(text: str) -> str:
+        return " ".join(text.casefold().split())
 
     def extract_citations(self, text: str) -> list[str]:
         """Extracts unique cited source document names from generated response text."""
@@ -185,6 +211,42 @@ class CitationValidator:
         """Extracts unique document filenames returned in session tool results."""
         chunks = self.extract_evidence_chunks(tool_results)
         return {c.source for c in chunks}
+
+    def build_retrieved_excerpt(
+        self,
+        question: str,
+        tool_results: list[dict[str, Any]],
+        *,
+        minimum_overlap: float = 0.5,
+        maximum_characters: int = 800,
+    ) -> tuple[str, str] | None:
+        """Select a verbatim sentence from request-local RAG evidence for safe fallback.
+
+        This is used only when the model's answer fails citation validation. It does
+        not paraphrase or synthesize facts: the source sentence must itself overlap
+        with the user's informative terms and is validated again before display.
+        """
+        question_tokens = self._claim_tokens(question)
+        if not question_tokens:
+            return None
+
+        candidates: list[tuple[float, float, str, str]] = []
+        for chunk in self.extract_evidence_chunks(tool_results):
+            for raw_sentence in re.split(r"(?<=[.!?])\s+", chunk.content.strip()):
+                sentence = re.sub(r"^\s*(?:[-*•]|\d+[.)])\s*", "", raw_sentence).strip()
+                if not sentence or len(sentence) > maximum_characters:
+                    continue
+                sentence_tokens = self._claim_tokens(sentence)
+                if not sentence_tokens:
+                    continue
+                overlap = len(question_tokens & sentence_tokens) / len(question_tokens)
+                if overlap >= minimum_overlap:
+                    candidates.append((overlap, chunk.similarity, sentence, chunk.source))
+
+        if not candidates:
+            return None
+        _, _, sentence, source = max(candidates, key=lambda item: (item[0], item[1]))
+        return sentence, source
 
     def detect_conflicting_evidence(self, chunks: list[EvidenceChunk]) -> list[str]:
         """Detects whether multiple chunks for the same source and section contain divergent numeric telemetry."""
@@ -233,10 +295,26 @@ class CitationValidator:
 
         for sent in raw_sentences:
             matches = list(self.CITATION_PATTERN.finditer(sent))
+            id_matches = list(self.REFERENCE_ID_PATTERN.finditer(sent))
+            total_citations_found += len(id_matches)
+            for id_match in id_matches:
+                identifier = id_match.group(1).strip()
+                ungrounded.append(f"identifier:{identifier}")
+                audit_flags.append("CITATION_VERIFICATION_FAILURE: model-supplied source identifiers are not provenance")
+                details.append(
+                    CitationAuditDetail(
+                        citation_text=id_match.group(0),
+                        source_file=f"identifier:{identifier}",
+                        page_number=None,
+                        associated_sentence=sent,
+                        status=CitationSupportStatus.FABRICATED_SOURCE,
+                        reason="Document and chunk identifiers must come from retrieval metadata, not model-written text.",
+                    )
+                )
             for match in matches:
                 total_citations_found += 1
                 raw_cit = match.group(0).strip()
-                src_file = match.group(1).strip().strip("'\"` ").lower()
+                src_file = match.group(1).strip().strip("'\"` ").replace("\\", "/").rsplit("/", 1)[-1].casefold()
                 page_str = match.group(2) if len(match.groups()) >= 2 and match.group(2) else None
                 page_num = int(page_str) if page_str and page_str.isdigit() else None
 
@@ -265,7 +343,7 @@ class CitationValidator:
                     continue
 
                 # 2. Fabricated source file check
-                matching_chunks = [c for c in chunks if c.source == src_file or src_file in c.source or c.source in src_file]
+                matching_chunks = [c for c in chunks if c.source.casefold() == src_file]
                 if not matching_chunks:
                     status = CitationSupportStatus.FABRICATED_SOURCE
                     reason = f"Source '{src_file}' was not found in retrieved session evidence {sorted(ground_truth_sources)}."
@@ -298,7 +376,7 @@ class CitationValidator:
 
                 if page_num is not None:
                     pages_present = {c.page for c in matching_chunks if c.page is not None}
-                    if pages_present and page_num not in pages_present:
+                    if page_num not in pages_present:
                         status = CitationSupportStatus.FABRICATED_PAGE
                         reason = f"Source '{src_file}' was retrieved, but cited page {page_num} is absent from retrieved pages {sorted(pages_present)}."
                         ungrounded.append(f"{src_file}:p{page_num}")
@@ -364,9 +442,64 @@ class CitationValidator:
                     )
                     continue
 
+                evidence_text = "\n".join(chunk.content for chunk in target_chunks)
+                quoted_phrases = [
+                    self._normalized_quote(value)
+                    for value in self.QUOTED_TEXT_PATTERN.findall(claim_text)
+                ]
+                normalized_evidence = self._normalized_quote(evidence_text)
+                if any(not phrase or phrase not in normalized_evidence for phrase in quoted_phrases):
+                    status = CitationSupportStatus.FABRICATED_QUOTE
+                    reason = "Quoted wording is not present in the cited retrieved chunk text."
+                    ungrounded.append(f"{src_file}(unverified_quote)")
+                    audit_flags.append(f"CITATION_VERIFICATION_FAILURE: fabricated quotation for '{src_file}'")
+                    details.append(
+                        CitationAuditDetail(
+                            citation_text=raw_cit,
+                            source_file=src_file,
+                            page_number=page_num,
+                            associated_sentence=sent,
+                            status=status,
+                            reason=reason,
+                            extracted_numbers=sorted(sent_numbers),
+                            ground_truth_numbers=sorted(gt_numbers),
+                            chunk_id=target_best_chunk.chunk_id if target_best_chunk else None,
+                            document_id=target_best_chunk.document_id if target_best_chunk else None,
+                            section=target_best_chunk.section if target_best_chunk else None,
+                            chunk_content=target_best_chunk.content if target_best_chunk else None,
+                        )
+                    )
+                    continue
+
+                claim_tokens = self._claim_tokens(claim_text)
+                evidence_tokens = self._claim_tokens(evidence_text)
+                overlap = claim_tokens & evidence_tokens
+                if not claim_tokens or not overlap or len(overlap) / len(claim_tokens) < 0.5:
+                    status = CitationSupportStatus.UNVERIFIABLE_SEMANTIC
+                    reason = "The cited chunk has insufficient informative-word overlap with the claim; semantic entailment is not established."
+                    ungrounded.append(f"{src_file}(claim_not_lexically_linked)")
+                    audit_flags.append(f"CITATION_VERIFICATION_FAILURE: claim not linked to evidence for '{src_file}'")
+                    details.append(
+                        CitationAuditDetail(
+                            citation_text=raw_cit,
+                            source_file=src_file,
+                            page_number=page_num,
+                            associated_sentence=sent,
+                            status=status,
+                            reason=reason,
+                            extracted_numbers=sorted(sent_numbers),
+                            ground_truth_numbers=sorted(gt_numbers),
+                            chunk_id=target_best_chunk.chunk_id if target_best_chunk else None,
+                            document_id=target_best_chunk.document_id if target_best_chunk else None,
+                            section=target_best_chunk.section if target_best_chunk else None,
+                            chunk_content=target_best_chunk.content if target_best_chunk else None,
+                        )
+                    )
+                    continue
+
                 # 5. Fully grounded citation
                 status = CitationSupportStatus.SUPPORTED
-                reason = "Citation source, page provenance, and numerical facts verified against retrieved chunk."
+                reason = "Exact source/page, quote/numeric checks, and lexical relevance screen passed; this is not semantic entailment proof."
                 verified.append(src_file)
                 details.append(
                     CitationAuditDetail(
@@ -391,48 +524,100 @@ class CitationValidator:
                     )
                 )
 
-        has_chunks = len(chunks) > 0
-        response_lower = response_text.lower()
-        is_honest_refusal = (
-            "insufficient internal evidence found" in response_lower
-            or "insufficient evidence" in response_lower
-            or "could not find any relevant information" in response_lower
-            or "couldn't find any relevant information" in response_lower
+        has_chunks = bool(chunks)
+        rag_was_called = any(
+            (result.get("tool_name") or result.get("tool")) == "rag_search"
+            for result in tool_results
+        )
+        response_lower = response_text.casefold()
+        is_honest_refusal = any(
+            phrase in response_lower
+            for phrase in (
+                "insufficient evidence",
+                "could not find",
+                "couldn't find",
+                "no matching information",
+                "no relevant information",
+                "no documents were retrieved",
+                "cannot provide a source-grounded answer",
+            )
         )
 
-        if has_chunks and total_citations_found == 0 and not is_honest_refusal:
-            # Check if any retrieved source filename or stem was referenced in natural prose
-            found_prose_sources: list[str] = []
-            for c in chunks:
-                base_name = c.source.lower()
-                stem_name = Path(c.source).stem.lower()
-                clean_name = stem_name.replace("_", " ")
-                if base_name in response_lower or stem_name in response_lower or clean_name in response_lower:
-                    found_prose_sources.append(c.source)
+        if has_chunks and rag_was_called and total_citations_found == 0 and not is_honest_refusal:
+            audit_flags.append(
+                "UNCITED_RAG_RESPONSE: Knowledge base evidence was retrieved, but the response contained no source citations."
+            )
+        if rag_was_called and not has_chunks:
+            audit_flags.append("EMPTY_RETRIEVAL_ABSTENTION: no evidence was retrieved for this request")
 
-            if found_prose_sources:
-                verified.extend(list(set(found_prose_sources)))
-                is_valid = True
-            else:
-                audit_flags.append(
-                    "UNCITED_RAG_RESPONSE: Knowledge base evidence was retrieved by rag_search, but the response contained zero citations."
-                )
-                is_valid = False
-        else:
-            is_valid = len(ungrounded) == 0
+        if rag_was_called and has_chunks:
+            for sentence in raw_sentences:
+                if self.CITATION_PATTERN.search(sentence) or self.REFERENCE_ID_PATTERN.search(sentence):
+                    continue
+                if any(
+                    phrase in sentence.casefold()
+                    for phrase in (
+                        "insufficient evidence", "could not find", "couldn't find",
+                        "no matching information", "no relevant information",
+                        "no documents were retrieved",
+                    )
+                ):
+                    continue
+                if len(self._claim_tokens(sentence)) >= 3:
+                    audit_flags.append("UNCITED_RAG_CLAIM: a substantive answer sentence has no source citation")
 
-        # Construct sanitized response with audit notices if any violations occurred
+        is_valid = not ungrounded and not any(
+            flag.startswith(("UNCITED_RAG_RESPONSE", "UNCITED_RAG_CLAIM", "EMPTY_RETRIEVAL_ABSTENTION"))
+            for flag in audit_flags
+        )
+
+        # Do not return model-written unsupported claims/citations as if they were
+        # sources. On failure retain only a refusal or complete sentences whose
+        # every displayed citation passed the deterministic checks.
         sanitized_response = response_text
         if not is_valid:
-            violations_summary = [f"- {d.citation_text}: {d.reason}" for d in details if d.status != CitationSupportStatus.SUPPORTED]
-            warning_banner = (
-                "\n\n> [!CAUTION]\n"
-                "> **Ungrounded Citation & Evidence Warning**:\n"
-                "> The following claims or sources could not be verified against retrieved knowledge base chunks:\n"
-                + "\n".join(violations_summary)
-                + "\n> *Deterministic claim validation failed. Manual engineering inspection required before industrial operation.*"
+            safe_sentences: list[str] = []
+            details_by_sentence: dict[str, list[CitationAuditDetail]] = {}
+            for detail in details:
+                details_by_sentence.setdefault(detail.associated_sentence, []).append(detail)
+
+            for sentence in raw_sentences:
+                sentence_details = details_by_sentence.get(sentence, [])
+                has_citation_markup = bool(
+                    self.CITATION_PATTERN.search(sentence) or self.REFERENCE_ID_PATTERN.search(sentence)
+                )
+                if has_citation_markup:
+                    if sentence_details and all(d.status == CitationSupportStatus.SUPPORTED for d in sentence_details):
+                        safe_sentences.append(sentence)
+                elif is_honest_refusal:
+                    lowered = sentence.casefold()
+                    if any(
+                        phrase in lowered
+                        for phrase in (
+                            "insufficient evidence", "could not find", "couldn't find",
+                            "no matching information", "no relevant information",
+                            "no documents were retrieved", "cannot provide a source-grounded answer",
+                        )
+                    ):
+                        safe_sentences.append(sentence)
+
+            safe_text = " ".join(dict.fromkeys(safe_sentences)).strip()
+            if rag_was_called and not has_chunks:
+                safe_text = (
+                    "I could not find relevant information in the internal knowledge base, "
+                    "so I cannot provide a source-grounded answer."
+                )
+            if not safe_text:
+                safe_text = (
+                    "I could not find relevant information in the internal knowledge base, "
+                    "so I cannot provide a source-grounded answer."
+                )
+            sanitized_response = (
+                safe_text
+                + "\n\n> [!CAUTION]\n"
+                + "> **Ungrounded Citation & Evidence Warning**: unsupported claims and unverified references were omitted. "
+                + "> Remaining statements passed source, page, quote, numeric, and lexical checks only; this is not semantic entailment proof."
             )
-            sanitized_response += warning_banner
 
         if conflicts:
             conflict_banner = (

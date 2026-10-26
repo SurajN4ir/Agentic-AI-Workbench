@@ -60,12 +60,13 @@ class TestDockerSandbox:
         mock_containers.run.assert_called_once()
         kwargs = mock_containers.run.call_args.kwargs
 
-        assert kwargs["network_mode"] == "none"  # Complete air-gap
+        assert kwargs["network_mode"] == "none"  # No network attachment for sandbox
         assert kwargs["cap_drop"] == ["ALL"]  # Dropped capabilities
         assert kwargs["security_opt"] == ["no-new-privileges:true"]  # No new privileges
         assert kwargs["mem_limit"] == "512m"  # Memory cap
         assert kwargs["pids_limit"] == 50  # Fork bomb protection
         assert kwargs["nano_cpus"] == 2_000_000_000  # CPU cap
+        assert kwargs["user"] == "1000:1000"  # Non-root execution
 
         # Verify cleanup
         mock_container.remove.assert_called_once_with(force=True)

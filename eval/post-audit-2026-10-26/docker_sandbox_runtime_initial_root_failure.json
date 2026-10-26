@@ -1,0 +1,34 @@
+{
+  "date": "2026-10-26",
+  "record_type": "preserved initial live failure before non-root repair",
+  "command": ".venv\\Scripts\\python.exe scripts\\verify_docker_sandbox_runtime.py",
+  "environment": {
+    "docker_engine": "29.7.2",
+    "image": "python:3.11-slim",
+    "image_was_preexisting": true,
+    "inputs": "synthetic Python only",
+    "workspace": "eval/post-audit-2026-10-26/docker-sandbox-workspace/runtime-verification"
+  },
+  "summary": {
+    "passed": 8,
+    "total": 11,
+    "failed": ["isolation_flags", "denied_operations", "missing_image_failure"]
+  },
+  "findings": {
+    "actual_user": "",
+    "expected_user": "1000:1000",
+    "privilege_escalation": "os.setuid(0) succeeded",
+    "sensitive_file_access": "reading /etc/shadow succeeded",
+    "network_probe": "blocked by network_mode=none",
+    "other_observed_controls": {
+      "network_mode": "none",
+      "cap_drop": ["ALL"],
+      "security_opt": ["no-new-privileges:true"],
+      "memory_bytes": 536870912,
+      "nano_cpus": 2000000000,
+      "pids_limit": 50,
+      "container_cleanup": "passed"
+    }
+  },
+  "action": "Added user=1000:1000 to DockerSandbox, asserted it in the unit test, and reran the complete live harness. The final clean-session run passed 11/11; see docker_sandbox_runtime.json."
+}

@@ -1,0 +1,99 @@
+{
+  "timestamp": "2026-10-25T06:30:45.498078+00:00",
+  "mode": "live_local_ollama_single_fixture_preprocessing_comparison",
+  "model": "qwen3.5:4b",
+  "temperature": 0.0,
+  "num_predict": 1024,
+  "think": false,
+  "fixture": "eval/fixtures/ocr/ambiguous_serial_tag.png",
+  "ground_truth_source": "eval/dataset/quantitative_ground_truth.json",
+  "reference_unchanged": true,
+  "prompt_and_model_identical_for_each_variant": true,
+  "cases": [
+    {
+      "variant": "current_2x_lanczos",
+      "image_dimensions": [
+        1100,
+        360
+      ],
+      "reference": "TAG-0O1Il8B5S2Z\nVALVE-O01-B8-S5-Z2\nSER-1I0O8B",
+      "prediction": "TAG-001IIB5S2Z\nVALVE-C01-B8-S5-Z2\nSER-110C8B",
+      "substitutions": 5,
+      "deletions": 1,
+      "insertions": 0,
+      "total_edits": 6,
+      "reference_characters": 45,
+      "cer": 0.133333,
+      "wer": 1.0,
+      "latency_ms": 1466.61
+    },
+    {
+      "variant": "4x_lanczos",
+      "image_dimensions": [
+        2200,
+        720
+      ],
+      "reference": "TAG-0O1Il8B5S2Z\nVALVE-O01-B8-S5-Z2\nSER-1I0O8B",
+      "prediction": "TAG-0O1IIB5S2Z\nVALVE-C01-B8-S5-Z2\nSER-1IOCB",
+      "substitutions": 3,
+      "deletions": 2,
+      "insertions": 0,
+      "total_edits": 5,
+      "reference_characters": 45,
+      "cer": 0.111111,
+      "wer": 1.0,
+      "latency_ms": 2526.22
+    },
+    {
+      "variant": "4x_nearest",
+      "image_dimensions": [
+        2200,
+        720
+      ],
+      "reference": "TAG-0O1Il8B5S2Z\nVALVE-O01-B8-S5-Z2\nSER-1I0O8B",
+      "prediction": "TAG-0O1II8B5S2Z\nVALVE-C01-B8-S5-Z2\nSER-1I0C8B",
+      "substitutions": 3,
+      "deletions": 0,
+      "insertions": 0,
+      "total_edits": 3,
+      "reference_characters": 45,
+      "cer": 0.066667,
+      "wer": 1.0,
+      "latency_ms": 2540.55
+    },
+    {
+      "variant": "autocontrast_sharp_2x",
+      "image_dimensions": [
+        1100,
+        360
+      ],
+      "reference": "TAG-0O1Il8B5S2Z\nVALVE-O01-B8-S5-Z2\nSER-1I0O8B",
+      "prediction": "TAG-001IIB5S2Z\nVALVE-C01-B8-S5-Z2\nSER-110C8B",
+      "substitutions": 5,
+      "deletions": 1,
+      "insertions": 0,
+      "total_edits": 6,
+      "reference_characters": 45,
+      "cer": 0.133333,
+      "wer": 1.0,
+      "latency_ms": 1509.79
+    },
+    {
+      "variant": "pixel_segmented_lines_4x",
+      "image_dimensions": [
+        420,
+        192
+      ],
+      "reference": "TAG-0O1Il8B5S2Z\nVALVE-O01-B8-S5-Z2\nSER-1I0O8B",
+      "prediction": "TAG-0O1IIB5S2Z\nVALVE-C01-B8-S5-Z2\nSER-IIOCB",
+      "substitutions": 4,
+      "deletions": 2,
+      "insertions": 0,
+      "total_edits": 6,
+      "reference_characters": 45,
+      "cer": 0.133333,
+      "wer": 1.0,
+      "latency_ms": 1333.24
+    }
+  ]
+}

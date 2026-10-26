@@ -1,0 +1,18 @@
+# Industrial Fluid Handling - Boiler Feedwater Pump Maintenance Standard
+Document Number: SPEC-PUMP-402
+Revision: 1.4
+
+## Section 1: Boiler Feedwater Pumps P-101 and P-102
+Feedwater pumps P-101 (Primary) and P-102 (Auxiliary Standby) are multistage centrifugal pumps.
+- Design Operating Discharge Pressure: 180.0 psi nominal (Maximum rated: 220.0 psi).
+- Nominal Volumetric Flow Rate: 350 GPM at 3550 RPM.
+- Impeller Diameter: 245 mm stainless steel grade 316.
+- Minimum Continuous Stable Flow (MCSF): 80 GPM.
+- Mechanical Seal Type: Balanced cartridge seal with API Plan 11 flush arrangement.
+- Seal Flush Minimum Recommended Flow: 15 GPM from discharge recirculation orifice.
+
+## Section 2: Preventive Maintenance Procedures
+- Daily Inspection: Check seal flush temperature (must stay below 60 deg C) and bearing housing vibration.
+- Monthly Inspection: Verify coupling alignment and grease cavity level on electric drive motor.
+- Annual Overhaul: Disassemble casing wear rings; replace if diametrical clearance exceeds 0.45 mm.
+- Coupling Spacer Bolt Torque: 85 Nm.

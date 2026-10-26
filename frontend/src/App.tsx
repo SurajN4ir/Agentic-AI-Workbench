@@ -55,6 +55,11 @@ export const App: React.FC = () => {
   const [ungroundedCitations, setUngroundedCitations] = useState<string[]>([])
   const [citationDetails, setCitationDetails] = useState<CitationDetail[]>([])
   const [selectedCitation, setSelectedCitation] = useState<CitationDetail | null>(null)
+  const [knowledgeTarget, setKnowledgeTarget] = useState<{
+    documentId?: string | null
+    filename?: string
+    chunkId?: string | null
+  } | null>(null)
   const [sessionArtifacts, setSessionArtifacts] = useState<ArtifactInfo[]>([])
   const [currentSessionId, setCurrentSessionId] = useState<string>('session_' + Math.random().toString(36).substring(2, 9))
 
@@ -137,7 +142,7 @@ export const App: React.FC = () => {
               setUngroundedCitations(data.ungrounded_citations || [])
             }
             if (data.citation_details) {
-              setCitationDetails(data.citation_details)
+              setCitationDetails(data.citation_details.filter((citation: CitationDetail) => citation.status === 'SUPPORTED'))
             }
           }
         },
@@ -152,6 +157,22 @@ export const App: React.FC = () => {
       setAgentStatus(`Execution error: ${err instanceof Error ? err.message : String(err)}`)
     } finally {
       setAgentRunning(false)
+    }
+  }
+
+  const handleDownloadArtifact = async (filename: string) => {
+    try {
+      const blob = await api.downloadArtifact(currentSessionId, filename)
+      const objectUrl = URL.createObjectURL(blob)
+      const downloadLink = document.createElement('a')
+      downloadLink.href = objectUrl
+      downloadLink.download = filename.split('/').pop() || filename
+      document.body.appendChild(downloadLink)
+      downloadLink.click()
+      downloadLink.remove()
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000)
+    } catch (err) {
+      setAgentStatus(`Download failed: ${err instanceof Error ? err.message : String(err)}`)
     }
   }
 
@@ -526,7 +547,11 @@ export const App: React.FC = () => {
                           </div>
                           <a
                             href={art.download_url}
-                            download={art.filename}
+                            download={art.filename.split('/').pop() || art.filename}
+                            onClick={(event) => {
+                              event.preventDefault()
+                              void handleDownloadArtifact(art.filename)
+                            }}
                             className="px-2.5 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-white text-[11px] flex items-center gap-1 transition-colors"
                           >
                             <Download className="h-3 w-3" />
@@ -635,7 +660,7 @@ export const App: React.FC = () => {
                       <div className="flex items-center gap-2">
                         {citationsVerified === true && (
                           <span className="text-[10px] bg-emerald-950/80 text-emerald-400 border border-emerald-800/80 px-2 py-0.5 rounded font-mono">
-                            ✓ Grounded Citations
+                            ✓ Evidence Checks Passed
                           </span>
                         )}
                         {citationsVerified === false && (
@@ -652,7 +677,7 @@ export const App: React.FC = () => {
                         <div className="flex items-center justify-between text-xs font-mono">
                           <span className="text-neutral-400 flex items-center gap-1.5 font-semibold">
                             <Layers className="h-3.5 w-3.5 text-blue-400" />
-                            Grounded Citations & Evidence ({citationDetails.length})
+                            Verified Source Links ({citationDetails.length})
                           </span>
                           <span className="text-[11px] text-neutral-500">
                             Click any source badge to inspect exact chunk passage
@@ -704,7 +729,11 @@ export const App: React.FC = () => {
 
           {/* TAB 2: KNOWLEDGE BASE & CHUNK INSPECTOR */}
           {activeTab === 'knowledge' && (
-            <KnowledgeHub currentUser={currentUser} />
+            <KnowledgeHub
+              currentUser={currentUser}
+              initialTarget={knowledgeTarget}
+              onClearTarget={() => setKnowledgeTarget(null)}
+            />
           )}
 
           {/* TAB 3: TOOLS & MATH CONSOLE */}
@@ -802,7 +831,8 @@ export const App: React.FC = () => {
       <CitationInspectorDrawer
         citation={selectedCitation}
         onClose={() => setSelectedCitation(null)}
-        onOpenInKnowledgeHub={() => {
+        onOpenInKnowledgeHub={(documentId, filename, chunkId) => {
+          setKnowledgeTarget({ documentId, filename, chunkId })
           setSelectedCitation(null)
           setActiveTab('knowledge')
         }}

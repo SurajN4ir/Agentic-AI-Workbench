@@ -369,6 +369,18 @@ class ApiClient {
     return res.json()
   }
 
+  async downloadArtifact(sessionId: string, filename: string): Promise<Blob> {
+    const encodedPath = filename.split('/').map(encodeURIComponent).join('/')
+    const res = await fetch(`/api/v1/artifacts/${encodeURIComponent(sessionId)}/${encodedPath}`, {
+      headers: this.getHeaders(),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Download failed' }))
+      throw new Error(err.detail || 'Download failed')
+    }
+    return res.blob()
+  }
+
   // --- Benchmarks & Evaluation ---
   async getBenchmarkScenarios(): Promise<BenchmarkCase[]> {
     const res = await fetch('/api/v1/benchmarks/scenarios', {

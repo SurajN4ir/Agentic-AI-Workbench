@@ -76,6 +76,57 @@ class TestWaterfallRouterStages:
         assert dec3.confidence == 0.85
         assert dec3.method == "keyword"
 
+    def test_stage_2_specialized_tool_intents(self, router: TaskRouter) -> None:
+        """Prompts with specialized industrial intents target appropriate tools deterministically."""
+        # Document generation
+        dec_doc = router.route("Generate a formal PDF inspection report summarizing bearing wear")
+        assert dec_doc.role == "reasoning"
+        assert dec_doc.target_tools is not None and "doc_gen" in dec_doc.target_tools
+        assert dec_doc.method == "keyword"
+
+        # Spreadsheet analysis (even when 'calculate' is present, spreadsheet priority holds)
+        dec_sheet = router.route("Filter the telemetry spreadsheet and calculate the average flow rate")
+        assert dec_sheet.role == "reasoning"
+        assert dec_sheet.target_tools is not None and "spreadsheet" in dec_sheet.target_tools
+        assert dec_sheet.method == "keyword"
+
+        # Pure mathematical calculation
+        dec_math = router.route("Calculate the Reynolds number given velocity 2.5 m/s and pipe diameter 0.1 m")
+        assert dec_math.role == "reasoning"
+        assert dec_math.target_tools is not None and "math_eval" in dec_math.target_tools
+        assert dec_math.method == "keyword"
+
+        # Technical domain knowledge inquiry (RAG)
+        dec_rag1 = router.route("What is the over-speed trip limit for the high-pressure turbine?")
+        assert dec_rag1.role == "reasoning"
+        assert dec_rag1.target_tools is not None and "rag_search" in dec_rag1.target_tools
+        assert dec_rag1.method == "keyword"
+
+        dec_rag2 = router.route("Look up the seal flush requirements in the maintenance manual")
+        assert dec_rag2.role == "reasoning"
+        assert dec_rag2.target_tools is not None and "rag_search" in dec_rag2.target_tools
+        assert dec_rag2.method == "keyword"
+
+        dec_uploaded = router.route(
+            "According to the uploaded specification 'Turbine_Operating_Spec_Verification.txt', "
+            "what is the vibration alarm threshold?"
+        )
+        assert dec_uploaded.target_tools is not None and "rag_search" in dec_uploaded.target_tools
+        assert dec_uploaded.method == "keyword"
+
+        # A calculation inside code authoring is still a coding task.
+        dec_code_math = router.route("Write a Python script using pandas to compute a rolling average")
+        assert dec_code_math.role == "coding"
+        assert dec_code_math.target_tools == ["code_sandbox"]
+
+        # A negated formula request is conceptual, not deterministic math.
+        dec_no_formula = router.route("Explain how neural networks learn without showing any code or formulas")
+        assert "math_eval" not in (dec_no_formula.target_tools or [])
+
+        # Incidental ranking words should only route to the spreadsheet tool with tabular context.
+        dec_table = router.route("Sort the boiler sensor table by pressure and return the top 5 readings")
+        assert "spreadsheet" in (dec_table.target_tools or [])
+
     def test_stage_2_conceptual_query_does_not_force_coding(self, router: TaskRouter) -> None:
         """Conceptual questions mentioning a language do not falsely trigger Stage 2 coding."""
         # "explain how python manages memory" -> conceptual, no action verb

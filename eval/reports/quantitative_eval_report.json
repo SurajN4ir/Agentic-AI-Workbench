@@ -1,0 +1,720 @@
+{
+  "version": "1.0.0",
+  "dataset_version": "1.0.0",
+  "environment": {
+    "mode": "live",
+    "is_live_inference": false,
+    "python_version": "3.11.15",
+    "platform": "win32",
+    "timestamp": "2026-10-25T05:05:41.698106+00:00",
+    "ollama_reachable": false,
+    "available_models": [],
+    "hardware_profiling": {
+      "cuda_available": false,
+      "profiling_note": "Host environment does not expose PyTorch CUDA; latency measured via high-resolution monotonic timer."
+    }
+  },
+  "results": {
+    "ocr_suite": {
+      "status": "unavailable",
+      "cases_evaluated": 0,
+      "attempted_cases": 4,
+      "unavailable_cases": 4,
+      "availability_note": "No OCR engine was available for one or more live cases; unavailable outputs are excluded from accuracy metrics.",
+      "aggregate_cer": {
+        "total_evaluations": 0,
+        "valid_evaluations": 0,
+        "empty_reference_evaluations": 0,
+        "undefined_evaluations": 0,
+        "micro_cer": 0.0,
+        "macro_cer": 0.0,
+        "macro_cer_percent": 0.0,
+        "mean_error_rate_valid_only": 0.0,
+        "global_mean_error_rate": 0.0,
+        "convention": "ratio (0.0=0%, 1.0=100%, >1.0=insertions exceed ref length)"
+      },
+      "mean_wer": 0.0,
+      "mean_keyword_recall": 0.0,
+      "cases": [
+        {
+          "fixture_id": "ocr_clean_plate",
+          "file_path": "eval\\fixtures\\ocr\\clean_specification_plate.png",
+          "category": "clean_printed",
+          "engine_used": "ocr_unavailable",
+          "latency_ms": 226.0,
+          "cer": null,
+          "wer": null,
+          "keyword_recall": null,
+          "expected_keywords": [
+            "TG-8500",
+            "SN-TG8500-2026-X",
+            "1250 KW",
+            "3600 RPM",
+            "85 C"
+          ],
+          "edits_breakdown": {
+            "substitutions": 0,
+            "deletions": 119,
+            "insertions": 0,
+            "total_edits": 119,
+            "reference_length": 119,
+            "hypothesis_length": 0,
+            "is_empty_reference": false,
+            "is_undefined": false
+          },
+          "output_preview": ""
+        },
+        {
+          "fixture_id": "ocr_ambiguous_tag",
+          "file_path": "eval\\fixtures\\ocr\\ambiguous_serial_tag.png",
+          "category": "ambiguous_characters",
+          "engine_used": "ocr_unavailable",
+          "latency_ms": 31.53,
+          "cer": null,
+          "wer": null,
+          "keyword_recall": null,
+          "expected_keywords": [
+            "0O1Il8B5S2Z",
+            "VALVE-O01-B8-S5-Z2",
+            "1I0O8B"
+          ],
+          "edits_breakdown": {
+            "substitutions": 0,
+            "deletions": 45,
+            "insertions": 0,
+            "total_edits": 45,
+            "reference_length": 45,
+            "hypothesis_length": 0,
+            "is_empty_reference": false,
+            "is_undefined": false
+          },
+          "output_preview": ""
+        },
+        {
+          "fixture_id": "ocr_table_telemetry",
+          "file_path": "eval\\fixtures\\ocr\\table_pump_telemetry.png",
+          "category": "tabular_grid",
+          "engine_used": "ocr_unavailable",
+          "latency_ms": 33.87,
+          "cer": null,
+          "wer": null,
+          "keyword_recall": null,
+          "expected_keywords": [
+            "PUMP_ID",
+            "P-101",
+            "145.2",
+            "P-102",
+            "188.7",
+            "P-103",
+            "STANDBY"
+          ],
+          "edits_breakdown": {
+            "substitutions": 0,
+            "deletions": 130,
+            "insertions": 0,
+            "total_edits": 130,
+            "reference_length": 130,
+            "hypothesis_length": 0,
+            "is_empty_reference": false,
+            "is_undefined": false
+          },
+          "output_preview": ""
+        },
+        {
+          "fixture_id": "ocr_scanned_pdf",
+          "file_path": "eval\\fixtures\\ocr\\scanned_turbine_inspection.pdf",
+          "category": "scanned_pdf_multipage",
+          "engine_used": "ocr_unavailable",
+          "latency_ms": 107.35,
+          "cer": null,
+          "wer": null,
+          "keyword_recall": null,
+          "expected_keywords": [
+            "TG-UNIT-4",
+            "ID-7742",
+            "2.4 MM/S",
+            "HF-402",
+            "12000",
+            "GS-12",
+            "450 NM",
+            "ACCEPTABLE"
+          ],
+          "edits_breakdown": {
+            "substitutions": 0,
+            "deletions": 339,
+            "insertions": 0,
+            "total_edits": 339,
+            "reference_length": 339,
+            "hypothesis_length": 0,
+            "is_empty_reference": false,
+            "is_undefined": false
+          },
+          "output_preview": ""
+        }
+      ]
+    },
+    "routing_suite": {
+      "status": "completed",
+      "cases_evaluated": 7,
+      "overall_accuracy": 1.0,
+      "macro_f1": 1.0,
+      "weighted_f1": 1.0,
+      "classification_report": {
+        "per_class": {
+          "rag": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 2,
+            "true_positives": 2,
+            "false_positives": 0,
+            "false_negatives": 0,
+            "true_negatives": 5
+          },
+          "code": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 1,
+            "true_positives": 1,
+            "false_positives": 0,
+            "false_negatives": 0,
+            "true_negatives": 6
+          },
+          "math": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 1,
+            "true_positives": 1,
+            "false_positives": 0,
+            "false_negatives": 0,
+            "true_negatives": 6
+          },
+          "spreadsheet": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 1,
+            "true_positives": 1,
+            "false_positives": 0,
+            "false_negatives": 0,
+            "true_negatives": 6
+          },
+          "document": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 1,
+            "true_positives": 1,
+            "false_positives": 0,
+            "false_negatives": 0,
+            "true_negatives": 6
+          },
+          "general": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 1,
+            "true_positives": 1,
+            "false_positives": 0,
+            "false_negatives": 0,
+            "true_negatives": 6
+          }
+        },
+        "accuracy": 1.0,
+        "macro_precision": 1.0,
+        "macro_recall": 1.0,
+        "macro_f1": 1.0,
+        "weighted_precision": 1.0,
+        "weighted_recall": 1.0,
+        "weighted_f1": 1.0,
+        "total_samples": 7,
+        "labels": [
+          "rag",
+          "code",
+          "math",
+          "spreadsheet",
+          "document",
+          "general"
+        ],
+        "confusion_matrix": {
+          "rag": {
+            "rag": 2,
+            "code": 0,
+            "math": 0,
+            "spreadsheet": 0,
+            "document": 0,
+            "general": 0
+          },
+          "code": {
+            "rag": 0,
+            "code": 1,
+            "math": 0,
+            "spreadsheet": 0,
+            "document": 0,
+            "general": 0
+          },
+          "math": {
+            "rag": 0,
+            "code": 0,
+            "math": 1,
+            "spreadsheet": 0,
+            "document": 0,
+            "general": 0
+          },
+          "spreadsheet": {
+            "rag": 0,
+            "code": 0,
+            "math": 0,
+            "spreadsheet": 1,
+            "document": 0,
+            "general": 0
+          },
+          "document": {
+            "rag": 0,
+            "code": 0,
+            "math": 0,
+            "spreadsheet": 0,
+            "document": 1,
+            "general": 0
+          },
+          "general": {
+            "rag": 0,
+            "code": 0,
+            "math": 0,
+            "spreadsheet": 0,
+            "document": 0,
+            "general": 1
+          }
+        }
+      },
+      "confusion_matrix": {
+        "labels": [
+          "rag",
+          "code",
+          "math",
+          "spreadsheet",
+          "document",
+          "general"
+        ],
+        "matrix": {
+          "rag": {
+            "rag": 2,
+            "code": 0,
+            "math": 0,
+            "spreadsheet": 0,
+            "document": 0,
+            "general": 0
+          },
+          "code": {
+            "rag": 0,
+            "code": 1,
+            "math": 0,
+            "spreadsheet": 0,
+            "document": 0,
+            "general": 0
+          },
+          "math": {
+            "rag": 0,
+            "code": 0,
+            "math": 1,
+            "spreadsheet": 0,
+            "document": 0,
+            "general": 0
+          },
+          "spreadsheet": {
+            "rag": 0,
+            "code": 0,
+            "math": 0,
+            "spreadsheet": 1,
+            "document": 0,
+            "general": 0
+          },
+          "document": {
+            "rag": 0,
+            "code": 0,
+            "math": 0,
+            "spreadsheet": 0,
+            "document": 1,
+            "general": 0
+          },
+          "general": {
+            "rag": 0,
+            "code": 0,
+            "math": 0,
+            "spreadsheet": 0,
+            "document": 0,
+            "general": 1
+          }
+        },
+        "total": 7
+      },
+      "cases": [
+        {
+          "case_id": "route_rag_01",
+          "prompt": "What is the over-speed trip limit and maximum allowable bearing vibration for the TG-8500 steam turbine?",
+          "expected_role": "rag",
+          "raw_decision_role": "reasoning",
+          "raw_decision_tools": [
+            "rag_search"
+          ],
+          "raw_method": "keyword",
+          "predicted_eval_role": "rag",
+          "is_correct": true,
+          "latency_ms": 1.58
+        },
+        {
+          "case_id": "route_rag_02",
+          "prompt": "Look up the seal flush requirements for boiler feedwater pump P-102.",
+          "expected_role": "rag",
+          "raw_decision_role": "reasoning",
+          "raw_decision_tools": [
+            "rag_search"
+          ],
+          "raw_method": "keyword",
+          "predicted_eval_role": "rag",
+          "is_correct": true,
+          "latency_ms": 0.75
+        },
+        {
+          "case_id": "route_code_01",
+          "prompt": "Write a python script to simulate bearing vibration dampening over 50 time steps using numpy.",
+          "expected_role": "code",
+          "raw_decision_role": "coding",
+          "raw_decision_tools": [
+            "code_sandbox"
+          ],
+          "raw_method": "keyword",
+          "predicted_eval_role": "code",
+          "is_correct": true,
+          "latency_ms": 2.2
+        },
+        {
+          "case_id": "route_math_01",
+          "prompt": "Calculate the thermal efficiency of a power plant generating 1250 kW from 4200 kJ/s heat input: 1250 / 4200 * 100.",
+          "expected_role": "math",
+          "raw_decision_role": "reasoning",
+          "raw_decision_tools": [
+            "math_eval"
+          ],
+          "raw_method": "keyword",
+          "predicted_eval_role": "math",
+          "is_correct": true,
+          "latency_ms": 1.08
+        },
+        {
+          "case_id": "route_sheet_01",
+          "prompt": "Filter the pump telemetry sheet to calculate the average flow rate for pumps with pressure over 100 psi.",
+          "expected_role": "spreadsheet",
+          "raw_decision_role": "reasoning",
+          "raw_decision_tools": [
+            "spreadsheet",
+            "code_sandbox",
+            "math_eval"
+          ],
+          "raw_method": "keyword",
+          "predicted_eval_role": "spreadsheet",
+          "is_correct": true,
+          "latency_ms": 0.66
+        },
+        {
+          "case_id": "route_doc_01",
+          "prompt": "Generate a downloadable PDF executive engineering summary report with audit sign-off table.",
+          "expected_role": "document",
+          "raw_decision_role": "reasoning",
+          "raw_decision_tools": [
+            "doc_gen",
+            "file_io"
+          ],
+          "raw_method": "keyword",
+          "predicted_eval_role": "document",
+          "is_correct": true,
+          "latency_ms": 0.64
+        },
+        {
+          "case_id": "route_gen_01",
+          "prompt": "Explain the general thermodynamic purpose of multistage centrifugal pumps in modern power stations.",
+          "expected_role": "general",
+          "raw_decision_role": "reasoning",
+          "raw_decision_tools": [],
+          "raw_method": "classifier",
+          "predicted_eval_role": "general",
+          "is_correct": true,
+          "latency_ms": 44.71
+        }
+      ]
+    },
+    "retrieval_suite": {
+      "status": "completed",
+      "queries_evaluated": 5,
+      "mean_recall_at_1": 0.0,
+      "mean_recall_at_3": 0.8,
+      "mean_recall_at_5": 0.8,
+      "mean_mrr": 0.4,
+      "cases": [
+        {
+          "query_id": "ret_rag_torque",
+          "query": "What is the specified tightening torque for the TG-8500 turbine casing studs?",
+          "is_answerable": true,
+          "relevant_target_chunks": [
+            "turbine_operating_manual.txt#chunk_4"
+          ],
+          "retrieved_top_5": [
+            "turbine_operating_manual.txt#chunk_1",
+            "turbine_operating_manual.txt#chunk_4",
+            "turbine_operating_manual.txt#chunk_2",
+            "unrelated_facility_memo.txt#chunk_11",
+            "pump_maintenance_spec.txt#chunk_8"
+          ],
+          "recall_at_1": 0.0,
+          "recall_at_3": 1.0,
+          "recall_at_5": 1.0,
+          "mrr": 0.5,
+          "latency_ms": 0.08
+        },
+        {
+          "query_id": "ret_rag_oil_temp",
+          "query": "What is the minimum oil supply temperature before rolling the TG-8500 turbine?",
+          "is_answerable": true,
+          "relevant_target_chunks": [
+            "turbine_operating_manual.txt#chunk_3"
+          ],
+          "retrieved_top_5": [
+            "turbine_operating_manual.txt#chunk_1",
+            "turbine_operating_manual.txt#chunk_3",
+            "turbine_operating_manual.txt#chunk_2",
+            "unrelated_facility_memo.txt#chunk_11",
+            "turbine_operating_manual.txt#chunk_5"
+          ],
+          "recall_at_1": 0.0,
+          "recall_at_3": 1.0,
+          "recall_at_5": 1.0,
+          "mrr": 0.5,
+          "latency_ms": 0.07
+        },
+        {
+          "query_id": "ret_rag_pump_pressure",
+          "query": "What is the nominal and maximum rated discharge pressure for boiler feedwater pump P-101?",
+          "is_answerable": true,
+          "relevant_target_chunks": [
+            "pump_maintenance_spec.txt#chunk_7"
+          ],
+          "retrieved_top_5": [
+            "pump_maintenance_spec.txt#chunk_6",
+            "pump_maintenance_spec.txt#chunk_7",
+            "turbine_operating_manual.txt#chunk_2",
+            "unrelated_facility_memo.txt#chunk_11",
+            "turbine_operating_manual.txt#chunk_5"
+          ],
+          "recall_at_1": 0.0,
+          "recall_at_3": 1.0,
+          "recall_at_5": 1.0,
+          "mrr": 0.5,
+          "latency_ms": 0.09
+        },
+        {
+          "query_id": "ret_rag_seal_flush",
+          "query": "What is the minimum recommended flow rate for the mechanical seal flush on boiler feedwater pump P-102?",
+          "is_answerable": true,
+          "relevant_target_chunks": [
+            "pump_maintenance_spec.txt#chunk_7"
+          ],
+          "retrieved_top_5": [
+            "pump_maintenance_spec.txt#chunk_6",
+            "pump_maintenance_spec.txt#chunk_7",
+            "unrelated_facility_memo.txt#chunk_11",
+            "pump_maintenance_spec.txt#chunk_8",
+            "turbine_operating_manual.txt#chunk_2"
+          ],
+          "recall_at_1": 0.0,
+          "recall_at_3": 1.0,
+          "recall_at_5": 1.0,
+          "mrr": 0.5,
+          "latency_ms": 0.09
+        },
+        {
+          "query_id": "ret_rag_absent_gas_igniter",
+          "query": "What is the spark ignition electrode gap and primary fuel nozzle diameter for the gas turbine combustor?",
+          "is_answerable": false,
+          "relevant_target_chunks": [],
+          "retrieved_top_5": [
+            "unrelated_facility_memo.txt#chunk_11",
+            "turbine_operating_manual.txt#chunk_2",
+            "turbine_operating_manual.txt#chunk_1",
+            "unrelated_facility_memo.txt#chunk_10",
+            "pump_maintenance_spec.txt#chunk_7"
+          ],
+          "recall_at_1": 0.0,
+          "recall_at_3": 0.0,
+          "recall_at_5": 0.0,
+          "mrr": 0.0,
+          "latency_ms": 0.09
+        }
+      ]
+    },
+    "grounding_suite": {
+      "status": "completed",
+      "claims_evaluated": 7,
+      "grounding_report": {
+        "accuracy": 0.5714,
+        "precision": 0.0,
+        "recall": 0.0,
+        "specificity": 1.0,
+        "f1": 0.0,
+        "hallucination_detection_rate": 1.0,
+        "false_acceptance_rate": 0.0,
+        "true_grounded": 0,
+        "false_grounded": 0,
+        "true_hallucination": 4,
+        "false_rejection": 3,
+        "total_claims": 7
+      },
+      "disclaimer": "Grounding metrics measure classification agreement against human-labelled assertions. They do not claim general open-ended semantic omniscience.",
+      "cases": [
+        {
+          "case_id": "claim_01_torque_true",
+          "claim": "The TG-8500 turbine casing studs require 450 Nm tightening torque.",
+          "claim_type": "factual_supported",
+          "ground_truth_supported": true,
+          "validator_supported": false,
+          "is_detection_accurate": false,
+          "audit_statuses": [
+            "EMPTY_RETRIEVAL"
+          ],
+          "audit_reasons": [
+            "No documents were retrieved by RAG, but response asserts source citations."
+          ],
+          "latency_ms": 0.23
+        },
+        {
+          "case_id": "claim_02_lube_interval_true",
+          "claim": "The specified lube oil change interval for the TG-8500 is every 8000 operating hours or 12 calendar months.",
+          "claim_type": "factual_supported",
+          "ground_truth_supported": true,
+          "validator_supported": false,
+          "is_detection_accurate": false,
+          "audit_statuses": [
+            "EMPTY_RETRIEVAL"
+          ],
+          "audit_reasons": [
+            "No documents were retrieved by RAG, but response asserts source citations."
+          ],
+          "latency_ms": 0.07
+        },
+        {
+          "case_id": "claim_03_pump_pressure_true",
+          "claim": "Feedwater pump P-101 has a nominal operating discharge pressure of 180.0 psi.",
+          "claim_type": "factual_supported",
+          "ground_truth_supported": true,
+          "validator_supported": false,
+          "is_detection_accurate": false,
+          "audit_statuses": [
+            "EMPTY_RETRIEVAL"
+          ],
+          "audit_reasons": [
+            "No documents were retrieved by RAG, but response asserts source citations."
+          ],
+          "latency_ms": 0.07
+        },
+        {
+          "case_id": "claim_04_torque_conflicting",
+          "claim": "The casing split-flange studs on the TG-8500 require 650 Nm tightening torque.",
+          "claim_type": "conflicting_numerical",
+          "ground_truth_supported": false,
+          "validator_supported": false,
+          "is_detection_accurate": true,
+          "audit_statuses": [
+            "EMPTY_RETRIEVAL"
+          ],
+          "audit_reasons": [
+            "No documents were retrieved by RAG, but response asserts source citations."
+          ],
+          "latency_ms": 0.05
+        },
+        {
+          "case_id": "claim_05_vibration_conflicting",
+          "claim": "The maximum allowable steady-state bearing vibration limit for the TG-8500 is 9.5 mm/s RMS.",
+          "claim_type": "conflicting_numerical",
+          "ground_truth_supported": false,
+          "validator_supported": false,
+          "is_detection_accurate": true,
+          "audit_statuses": [
+            "EMPTY_RETRIEVAL"
+          ],
+          "audit_reasons": [
+            "No documents were retrieved by RAG, but response asserts source citations."
+          ],
+          "latency_ms": 0.05
+        },
+        {
+          "case_id": "claim_06_ceramic_fabrication",
+          "claim": "The TG-8500 turbine utilizes ceramic-matrix composite rotor blades with titanium coating.",
+          "claim_type": "fabricated_unsupported",
+          "ground_truth_supported": false,
+          "validator_supported": false,
+          "is_detection_accurate": true,
+          "audit_statuses": [
+            "EMPTY_RETRIEVAL"
+          ],
+          "audit_reasons": [
+            "No documents were retrieved by RAG, but response asserts source citations."
+          ],
+          "latency_ms": 0.04
+        },
+        {
+          "case_id": "claim_07_absent_component",
+          "claim": "The natural gas combustor spark plug requires a 15 kV ignition transformer.",
+          "claim_type": "absent_component",
+          "ground_truth_supported": false,
+          "validator_supported": false,
+          "is_detection_accurate": true,
+          "audit_statuses": [
+            "EMPTY_RETRIEVAL"
+          ],
+          "audit_reasons": [
+            "No documents were retrieved by RAG, but response asserts source citations."
+          ],
+          "latency_ms": 0.04
+        }
+      ]
+    },
+    "tool_suite": {
+      "status": "completed",
+      "tasks_evaluated": 3,
+      "numerical_accuracy": 1.0,
+      "cases": [
+        {
+          "task_id": "tool_math_01_efficiency",
+          "expression": "1250 / 4200 * 100",
+          "expected_value": 29.761905,
+          "actual_value": 29.7619047619048,
+          "tolerance": 0.0001,
+          "is_correct": true,
+          "error": null,
+          "latency_ms": 3.45
+        },
+        {
+          "task_id": "tool_math_02_torque_conversion",
+          "expression": "450 * 0.737562",
+          "expected_value": 331.9029,
+          "actual_value": 331.9029,
+          "tolerance": 0.001,
+          "is_correct": true,
+          "error": null,
+          "latency_ms": 4.22
+        },
+        {
+          "task_id": "tool_math_03_flow_ratio",
+          "expression": "350 / 80",
+          "expected_value": 4.375,
+          "actual_value": 4.375,
+          "tolerance": 0.0001,
+          "is_correct": true,
+          "error": null,
+          "latency_ms": 1.31
+        }
+      ]
+    }
+  }
+}

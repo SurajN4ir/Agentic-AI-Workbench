@@ -3,7 +3,7 @@ app/sandbox/docker_sandbox.py
 =============================
 Isolated container sandbox for executing untrusted Python scripts safely.
 Enforces strict security boundaries:
-  - network_mode="none": complete network air-gap; blocks data exfiltration
+  - network_mode="none": the sandbox container receives no network attachment
   - cap_drop=["ALL"]: drops all Linux capabilities
   - security_opt=["no-new-privileges:true"]: prevents privilege escalation
   - mem_limit="512m" and pids_limit=50: prevents memory exhaustion and fork bombs
@@ -86,7 +86,7 @@ class DockerSandbox:
             f"Isolation engine: Docker container ({self.image})",
             f"Timeout limit: {effective_timeout}s",
             f"Memory limit: {self.mem_limit}",
-            "Network: None (Air-gapped)",
+            "Container network: Disabled (network_mode=none)",
         ]
 
         # 1. Enforce workspace boundary
@@ -137,12 +137,13 @@ class DockerSandbox:
                 command=["python", "-c", code],
                 volumes={str(session_workspace.resolve()): {"bind": "/workspace", "mode": "rw"}},
                 working_dir="/workspace",
-                network_mode="none",  # COMPLETE AIR-GAP
+                network_mode="none",  # Disable networking for this sandbox container
                 mem_limit=self.mem_limit,
                 nano_cpus=2_000_000_000,  # Max 2 CPUs
                 pids_limit=50,  # Prevent fork bombs
                 cap_drop=["ALL"],  # Drop all Linux capabilities
                 security_opt=["no-new-privileges:true"],
+                user="1000:1000",  # Do not run untrusted code as the image's default root user
                 detach=True,
             )
 

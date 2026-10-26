@@ -113,6 +113,18 @@ class AgentService:
         # Validate citations against genuine retrieved tool evidence
         citation_validator = CitationValidator()
         val_result = citation_validator.validate(raw_response, tool_results)
+        model_validation = val_result
+        evidence_fallback_used = False
+        if not val_result.is_valid:
+            excerpt = citation_validator.build_retrieved_excerpt(request.prompt, tool_results)
+            if excerpt:
+                excerpt_text, excerpt_source = excerpt
+                fallback_response = f'Retrieved verbatim excerpt: “{excerpt_text}” [Source: {excerpt_source}]'
+                fallback_validation = citation_validator.validate(fallback_response, tool_results)
+                if fallback_validation.is_valid:
+                    raw_response = fallback_response
+                    val_result = fallback_validation
+                    evidence_fallback_used = True
         final_response_text = val_result.sanitized_response if not val_result.is_valid else raw_response
 
         citation_details = [
@@ -137,6 +149,7 @@ class AgentService:
                 rrf_score=d.rrf_score,
             )
             for d in val_result.details
+            if d.status.value == "SUPPORTED"
         ]
 
         has_rag_tools = any(t.get("tool") == "rag_search" or t.get("tool_name") == "rag_search" for t in tool_results)
@@ -161,6 +174,8 @@ class AgentService:
                     "citations_verified": citations_verified_flag,
                     "verified_citations": val_result.verified_citations,
                     "ungrounded_citations": val_result.ungrounded_citations,
+                    "evidence_fallback_used": evidence_fallback_used,
+                    "rejected_model_response_flags": model_validation.audit_flags if evidence_fallback_used else [],
                 },
                 summary=f"Completed agent task ({final_state.get('iteration_count', 0)} iters, {len(tool_results)} tools)",
             )
@@ -198,6 +213,7 @@ class AgentService:
             verified_citations=val_result.verified_citations,
             ungrounded_citations=val_result.ungrounded_citations,
             citation_details=citation_details,
+            evidence_fallback_used=evidence_fallback_used,
         )
 
     async def stream(
@@ -306,6 +322,19 @@ class AgentService:
                     duration_ms = (time.perf_counter() - start_time) * 1000
                     raw_res = node_update.get("final_response") or ""
                     val_res = CitationValidator().validate(raw_res, all_tool_results)
+                    model_validation = val_res
+                    evidence_fallback_used = False
+                    if not val_res.is_valid:
+                        validator = CitationValidator()
+                        excerpt = validator.build_retrieved_excerpt(request.prompt, all_tool_results)
+                        if excerpt:
+                            excerpt_text, excerpt_source = excerpt
+                            fallback_response = f'Retrieved verbatim excerpt: “{excerpt_text}” [Source: {excerpt_source}]'
+                            fallback_validation = validator.validate(fallback_response, all_tool_results)
+                            if fallback_validation.is_valid:
+                                raw_res = fallback_response
+                                val_res = fallback_validation
+                                evidence_fallback_used = True
                     final_text = val_res.sanitized_response if not val_res.is_valid else raw_res
                     stream_details = [
                         {
@@ -329,6 +358,7 @@ class AgentService:
                             "rrf_score": d.rrf_score,
                         }
                         for d in val_res.details
+                        if d.status.value == "SUPPORTED"
                     ]
                     yield {
                         "event": "done",
@@ -340,5 +370,7 @@ class AgentService:
                             "verified_citations": val_res.verified_citations,
                             "ungrounded_citations": val_res.ungrounded_citations,
                             "citation_details": stream_details,
+                            "evidence_fallback_used": evidence_fallback_used,
+                            "rejected_model_response_flags": model_validation.audit_flags if evidence_fallback_used else [],
                         },
                     }

@@ -1,0 +1,168 @@
+{
+  "version": "1.0.0",
+  "dataset_version": "1.0.0",
+  "environment": {
+    "mode": "live",
+    "is_live_inference": true,
+    "python_version": "3.11.15",
+    "platform": "win32",
+    "timestamp": "2026-10-25T05:45:56.815359+00:00",
+    "ollama_reachable": true,
+    "available_models": [
+      "all-minilm",
+      "all-minilm:l6-v2",
+      "gemma4",
+      "gemma4:e4b",
+      "llama3.2",
+      "llama3.2:latest",
+      "qwen3",
+      "qwen3.5",
+      "qwen3.5:4b",
+      "qwen3:8b"
+    ],
+    "hardware_profiling": {
+      "cuda_available": false,
+      "profiling_note": "Host environment does not expose PyTorch CUDA; latency measured via high-resolution monotonic timer."
+    }
+  },
+  "results": {
+    "ocr_suite": {
+      "status": "completed",
+      "cases_evaluated": 4,
+      "attempted_cases": 4,
+      "unavailable_cases": 0,
+      "availability_note": null,
+      "aggregate_cer": {
+        "total_evaluations": 4,
+        "valid_evaluations": 4,
+        "empty_reference_evaluations": 0,
+        "undefined_evaluations": 0,
+        "micro_cer": 0.0332,
+        "macro_cer": 0.0471,
+        "macro_cer_percent": 4.71,
+        "mean_error_rate_valid_only": 0.0471,
+        "global_mean_error_rate": 0.0471,
+        "convention": "ratio (0.0=0%, 1.0=100%, >1.0=insertions exceed ref length)"
+      },
+      "mean_wer": 0.3167,
+      "mean_keyword_recall": 0.7188,
+      "cases": [
+        {
+          "fixture_id": "ocr_clean_plate",
+          "file_path": "eval\\fixtures\\ocr\\clean_specification_plate.png",
+          "category": "clean_printed",
+          "engine_used": "ollama_vision:qwen3.5:4b",
+          "latency_ms": 7064.09,
+          "cer": 0.016807,
+          "wer": 0.166667,
+          "keyword_recall": 1.0,
+          "expected_keywords": [
+            "TG-8500",
+            "SN-TG8500-2026-X",
+            "1250 KW",
+            "3600 RPM",
+            "85 C"
+          ],
+          "edits_breakdown": {
+            "substitutions": 1,
+            "deletions": 1,
+            "insertions": 0,
+            "total_edits": 2,
+            "reference_length": 119,
+            "hypothesis_length": 118,
+            "is_empty_reference": false,
+            "is_undefined": false
+          },
+          "output_preview": "TURBINE GENERATOR TG-8500 SERIAL: SN-TG8500-2026-X RATED CAPACITY: 1250 KW OPERATING SPEED: 3600 RPM MAXOIL TEMP. 85 C"
+        },
+        {
+          "fixture_id": "ocr_ambiguous_tag",
+          "file_path": "eval\\fixtures\\ocr\\ambiguous_serial_tag.png",
+          "category": "ambiguous_characters",
+          "engine_used": "ollama_vision:qwen3.5:4b",
+          "latency_ms": 1188.17,
+          "cer": 0.133333,
+          "wer": 1.0,
+          "keyword_recall": 0.0,
+          "expected_keywords": [
+            "0O1Il8B5S2Z",
+            "VALVE-O01-B8-S5-Z2",
+            "1I0O8B"
+          ],
+          "edits_breakdown": {
+            "substitutions": 5,
+            "deletions": 1,
+            "insertions": 0,
+            "total_edits": 6,
+            "reference_length": 45,
+            "hypothesis_length": 44,
+            "is_empty_reference": false,
+            "is_undefined": false
+          },
+          "output_preview": "TAG-001IIB5S2Z VALVE-C01-B8-S5-Z2 SER-110C8B"
+        },
+        {
+          "fixture_id": "ocr_table_telemetry",
+          "file_path": "eval\\fixtures\\ocr\\table_pump_telemetry.png",
+          "category": "tabular_grid",
+          "engine_used": "ollama_vision:qwen3.5:4b",
+          "latency_ms": 1775.02,
+          "cer": 0.0,
+          "wer": 0.0,
+          "keyword_recall": 1.0,
+          "expected_keywords": [
+            "PUMP_ID",
+            "P-101",
+            "145.2",
+            "P-102",
+            "188.7",
+            "P-103",
+            "STANDBY"
+          ],
+          "edits_breakdown": {
+            "substitutions": 0,
+            "deletions": 0,
+            "insertions": 0,
+            "total_edits": 0,
+            "reference_length": 130,
+            "hypothesis_length": 130,
+            "is_empty_reference": false,
+            "is_undefined": false
+          },
+          "output_preview": "PUMP_ID PRESSURE_PSI FLOW_GPM TEMP_C STATUS P-101 145.2 320 62.4 NOMINAL P-102 188.7 410 78.1 ELEVATED P-103 92.0 150 45.0 STANDBY"
+        },
+        {
+          "fixture_id": "ocr_scanned_pdf",
+          "file_path": "eval\\fixtures\\ocr\\scanned_turbine_inspection.pdf",
+          "category": "scanned_pdf_multipage",
+          "engine_used": "ollama_vision:qwen3.5:4b",
+          "latency_ms": 4365.28,
+          "cer": 0.038348,
+          "wer": 0.1,
+          "keyword_recall": 0.875,
+          "expected_keywords": [
+            "TG-UNIT-4",
+            "ID-7742",
+            "2.4 MM/S",
+            "HF-402",
+            "12000",
+            "GS-12",
+            "450 NM",
+            "ACCEPTABLE"
+          ],
+          "edits_breakdown": {
+            "substitutions": 1,
+            "deletions": 3,
+            "insertions": 9,
+            "total_edits": 13,
+            "reference_length": 339,
+            "hypothesis_length": 345,
+            "is_empty_reference": false,
+            "is_undefined": false
+          },
+          "output_preview": "SOVEREIGN POWER SYSTEMS - FIELD INSPECTION LOG  ASSET: STEAM TURBINE UNIT 4  DATE: 2026-10-15  INSPECTOR ID-7742  BEARING VIBRATION: 2.4 MM/S  EXHAUST PRESSURE 0.08 BAR MAINTENANCE ACTION ITEMS  1. RE"
+        }
+      ]
+    }
+  }
+}

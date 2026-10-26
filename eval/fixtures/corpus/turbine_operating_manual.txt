@@ -1,0 +1,32 @@
+# Sovereign Power Systems - Industrial Steam Turbine Manual
+Model Series: TG-8500
+Revision: 3.2 (Controlled Industrial Release)
+
+## Section 1: Core Operational Limits
+The TG-8500 industrial steam turbine is designed for continuous baseload power generation.
+- Rated Nominal Capacity: 1250 kW
+- Operating Speed: 3600 RPM
+- Over-speed Trip Threshold: 3960 RPM (110% of rated speed)
+- Maximum Allowable Bearing Vibration: 4.5 mm/s RMS under steady load.
+- Critical Vibration Trip Limit: 7.0 mm/s RMS (immediate automated trip).
+- Maximum Main Bearing Temperature: 95.0 deg C.
+- Normal Oil Header Pressure: 2.2 to 2.8 bar.
+
+## Section 2: Lubrication and Oil Circuit
+- Specified Lubricant: ISO VG 46 synthetic rust-and-oxidation inhibited turbine oil.
+- Oil Reservoir Total Capacity: 800 Liters.
+- Lube Oil Change Interval: Every 8000 operating hours or 12 calendar months, whichever occurs first.
+- Lube Oil Filter Differential Pressure Alarm: 1.2 bar.
+- Minimum Oil Supply Temperature to Bearings: 40.0 deg C prior to rolling turbine.
+
+## Section 3: Fasteners and Mechanical Specifications
+- Turbine Casing Main Split-Flange Studs: M36 grade 8.8 alloy steel.
+- Specified Casing Stud Tightening Torque: 450 Nm (tightened in cross-pattern sequence).
+- Steam Admission Stop Valve Flange Bolts: 180 Nm torque.
+- Exhaust Vacuum Normal Operating Range: 0.06 bar to 0.10 bar absolute.
+- Gland Steam Sealing Pressure: 0.25 bar gauge.
+
+## Section 4: Emergency Trip & Interlock Sequences
+1. Manual Emergency Trip: Hand trip push-button PB-101 located on front governor pedestal.
+2. Low Lube Oil Pressure Trip: Activated if header pressure drops below 1.2 bar for more than 500 ms.
+3. High Exhaust Temperature Trip: Activated if exhaust hood temperature exceeds 120.0 deg C.

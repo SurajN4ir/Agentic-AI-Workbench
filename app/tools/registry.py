@@ -179,7 +179,11 @@ class ToolRegistry:
                                         },
                                         "required": ["body"],
                                     },
-                                    "description": "Text sections for docx or markdown reports.",
+                                    "description": "Required non-empty body sections for docx/markdown unless a non-empty table is supplied.",
+                                },
+                                "content": {
+                                    "type": "string",
+                                    "description": "Legacy single-body alias; use sections when possible. Must not be empty.",
                                 },
                                 "table": {
                                     "type": "object",
@@ -187,7 +191,7 @@ class ToolRegistry:
                                         "headers": {"type": "array", "items": {"type": "string"}},
                                         "rows": {"type": "array", "items": {"type": "array"}},
                                     },
-                                    "description": "Optional tabular data to include in the document or spreadsheet.",
+                                    "description": "Non-empty headers and at least one correctly sized row for XLSX; optional table block for reports.",
                                 },
                             },
                             "required": ["format", "title"],
@@ -419,13 +423,18 @@ class ToolRegistry:
     def _execute_doc_gen(self, input_data: dict[str, Any], session_id: str) -> ToolResult:
         from app.artifacts.generator import ArtifactGenerator
         from app.artifacts.models import ReportSpec, SheetSpec, SpreadsheetSpec, TableBlock, TextBlock
+        from app.tools.doc_gen_validation import normalize_doc_gen_input
 
-        fmt = str(input_data.get("format", "docx")).lower().strip()
-        title = str(input_data.get("title", "Report")).strip()
-        filename = str(input_data.get("filename") or f"{title.lower().replace(' ', '_')}.{fmt}")
+        normalized, validation_error = normalize_doc_gen_input(input_data)
+        if validation_error or normalized is None:
+            return ToolResult(status=ToolStatus.ERROR, error=validation_error or "Invalid doc_gen request.")
 
-        sections_raw = input_data.get("sections", [])
-        table_raw = input_data.get("table")
+        fmt = normalized["format"]
+        title = normalized["title"]
+        filename = normalized.get("filename") or f"{title.lower().replace(' ', '_')}.{fmt}"
+
+        sections_raw = normalized["sections"]
+        table_raw = normalized.get("table")
 
         blocks: list[TextBlock | TableBlock] = []
         for s in sections_raw:

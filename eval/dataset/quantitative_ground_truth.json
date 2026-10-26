@@ -1,0 +1,205 @@
+{
+  "version": "1.0.0",
+  "dataset_id": "sovereign_quantitative_ground_truth_v1",
+  "generated_at": "2026-10-22T15:00:00Z",
+  "scope": "Deterministic Ground Truth Targets for Sovereign AI Workbench Quantitative Evaluation",
+  "ocr_ground_truth": {
+    "clean_specification_plate.png": {
+      "fixture_path": "eval/fixtures/ocr/clean_specification_plate.png",
+      "category": "clean_printed",
+      "transcription": "TURBINE GENERATOR TG-8500\nSERIAL: SN-TG8500-2026-X\nRATED CAPACITY: 1250 KW\nOPERATING SPEED: 3600 RPM\nMAX OIL TEMP: 85 C",
+      "expected_keywords": ["TG-8500", "SN-TG8500-2026-X", "1250 KW", "3600 RPM", "85 C"]
+    },
+    "ambiguous_serial_tag.png": {
+      "fixture_path": "eval/fixtures/ocr/ambiguous_serial_tag.png",
+      "category": "ambiguous_characters",
+      "transcription": "TAG-0O1Il8B5S2Z\nVALVE-O01-B8-S5-Z2\nSER-1I0O8B",
+      "expected_keywords": ["0O1Il8B5S2Z", "VALVE-O01-B8-S5-Z2", "1I0O8B"]
+    },
+    "table_pump_telemetry.png": {
+      "fixture_path": "eval/fixtures/ocr/table_pump_telemetry.png",
+      "category": "tabular_grid",
+      "transcription": "PUMP_ID PRESSURE_PSI FLOW_GPM TEMP_C STATUS\nP-101 145.2 320 62.4 NOMINAL\nP-102 188.7 410 78.1 ELEVATED\nP-103 92.0 150 45.0 STANDBY",
+      "expected_keywords": ["PUMP_ID", "P-101", "145.2", "P-102", "188.7", "P-103", "STANDBY"]
+    },
+    "scanned_turbine_inspection.pdf": {
+      "fixture_path": "eval/fixtures/ocr/scanned_turbine_inspection.pdf",
+      "category": "scanned_pdf_multipage",
+      "page_count": 2,
+      "transcription": "SOVEREIGN POWER SYSTEMS - FIELD INSPECTION LOG\nASSET: STEAM TURBINE UNIT 4\nDATE: 2026-10-15\nINSPECTOR: ID-7742\nBEARING VIBRATION: 2.4 MM/S\nEXHAUST PRESSURE: 0.08 BAR\nMAINTENANCE ACTION ITEMS:\n1. REPLACE HYDRAULIC FILTER HF-402 AT 12000 HOURS\n2. CALIBRATE GOVERNOR SENSOR GS-12\n3. RE-TORQUE CASING BOLTS TO 450 NM\nOVERALL STATUS: ACCEPTABLE",
+      "expected_keywords": ["TG-UNIT-4", "ID-7742", "2.4 MM/S", "HF-402", "12000", "GS-12", "450 NM", "ACCEPTABLE"]
+    }
+  },
+  "routing_ground_truth": [
+    {
+      "id": "route_rag_01",
+      "prompt": "What is the over-speed trip limit and maximum allowable bearing vibration for the TG-8500 steam turbine?",
+      "expected_role": "rag",
+      "domain": "industrial_kb"
+    },
+    {
+      "id": "route_rag_02",
+      "prompt": "Look up the seal flush requirements for boiler feedwater pump P-102.",
+      "expected_role": "rag",
+      "domain": "industrial_kb"
+    },
+    {
+      "id": "route_code_01",
+      "prompt": "Write a python script to simulate bearing vibration dampening over 50 time steps using numpy.",
+      "expected_role": "code",
+      "domain": "scripting"
+    },
+    {
+      "id": "route_math_01",
+      "prompt": "Calculate the thermal efficiency of a power plant generating 1250 kW from 4200 kJ/s heat input: 1250 / 4200 * 100.",
+      "expected_role": "math",
+      "domain": "calculation"
+    },
+    {
+      "id": "route_sheet_01",
+      "prompt": "Filter the pump telemetry sheet to calculate the average flow rate for pumps with pressure over 100 psi.",
+      "expected_role": "spreadsheet",
+      "domain": "data_analysis"
+    },
+    {
+      "id": "route_doc_01",
+      "prompt": "Generate a downloadable PDF executive engineering summary report with audit sign-off table.",
+      "expected_role": "document",
+      "domain": "artifact_export"
+    },
+    {
+      "id": "route_gen_01",
+      "prompt": "Explain the general thermodynamic purpose of multistage centrifugal pumps in modern power stations.",
+      "expected_role": "general",
+      "domain": "general_knowledge"
+    }
+  ],
+  "retrieval_ground_truth": [
+    {
+      "id": "ret_rag_torque",
+      "query": "What is the specified tightening torque for the TG-8500 turbine casing studs?",
+      "relevant_fixture": "eval/fixtures/corpus/turbine_operating_manual.txt",
+      "relevant_phrases": [
+        "Turbine Casing Main Split-Flange Studs: M36 grade 8.8 alloy steel",
+        "Specified Casing Stud Tightening Torque: 450 Nm"
+      ],
+      "irrelevant_distractor": "eval/fixtures/corpus/unrelated_facility_memo.txt",
+      "is_answerable": true
+    },
+    {
+      "id": "ret_rag_oil_temp",
+      "query": "What is the minimum oil supply temperature before rolling the TG-8500 turbine?",
+      "relevant_fixture": "eval/fixtures/corpus/turbine_operating_manual.txt",
+      "relevant_phrases": [
+        "Minimum Oil Supply Temperature to Bearings: 40.0 deg C prior to rolling turbine"
+      ],
+      "irrelevant_distractor": "eval/fixtures/corpus/unrelated_facility_memo.txt",
+      "is_answerable": true
+    },
+    {
+      "id": "ret_rag_pump_pressure",
+      "query": "What is the nominal and maximum rated discharge pressure for boiler feedwater pump P-101?",
+      "relevant_fixture": "eval/fixtures/corpus/pump_maintenance_spec.txt",
+      "relevant_phrases": [
+        "Design Operating Discharge Pressure: 180.0 psi nominal (Maximum rated: 220.0 psi)"
+      ],
+      "irrelevant_distractor": "eval/fixtures/corpus/unrelated_facility_memo.txt",
+      "is_answerable": true
+    },
+    {
+      "id": "ret_rag_seal_flush",
+      "query": "What is the minimum recommended flow rate for the mechanical seal flush on boiler feedwater pump P-102?",
+      "relevant_fixture": "eval/fixtures/corpus/pump_maintenance_spec.txt",
+      "relevant_phrases": [
+        "Seal Flush Minimum Recommended Flow: 15 GPM from discharge recirculation orifice"
+      ],
+      "irrelevant_distractor": "eval/fixtures/corpus/unrelated_facility_memo.txt",
+      "is_answerable": true
+    },
+    {
+      "id": "ret_rag_absent_gas_igniter",
+      "query": "What is the spark ignition electrode gap and primary fuel nozzle diameter for the gas turbine combustor?",
+      "relevant_fixture": null,
+      "relevant_phrases": [],
+      "irrelevant_distractor": "eval/fixtures/corpus/turbine_operating_manual.txt",
+      "is_answerable": false,
+      "expected_behavior": "rejection_or_zero_retrieval",
+      "corpus_absence_reason": "The facility operates a steam turbine (TG-8500); gas turbine igniters are absent from the corpus."
+    }
+  ],
+  "grounding_ground_truth": [
+    {
+      "id": "claim_01_torque_true",
+      "claim": "The TG-8500 turbine casing studs require 450 Nm tightening torque.",
+      "source_fixture": "eval/fixtures/corpus/turbine_operating_manual.txt",
+      "is_supported": true,
+      "claim_type": "factual_supported"
+    },
+    {
+      "id": "claim_02_lube_interval_true",
+      "claim": "The specified lube oil change interval for the TG-8500 is every 8000 operating hours or 12 calendar months.",
+      "source_fixture": "eval/fixtures/corpus/turbine_operating_manual.txt",
+      "is_supported": true,
+      "claim_type": "factual_supported"
+    },
+    {
+      "id": "claim_03_pump_pressure_true",
+      "claim": "Feedwater pump P-101 has a nominal operating discharge pressure of 180.0 psi.",
+      "source_fixture": "eval/fixtures/corpus/pump_maintenance_spec.txt",
+      "is_supported": true,
+      "claim_type": "factual_supported"
+    },
+    {
+      "id": "claim_04_torque_conflicting",
+      "claim": "The casing split-flange studs on the TG-8500 require 650 Nm tightening torque.",
+      "source_fixture": "eval/fixtures/corpus/turbine_operating_manual.txt",
+      "is_supported": false,
+      "claim_type": "conflicting_numerical",
+      "contradiction_detail": "Manual strictly specifies 450 Nm, not 650 Nm."
+    },
+    {
+      "id": "claim_05_vibration_conflicting",
+      "claim": "The maximum allowable steady-state bearing vibration limit for the TG-8500 is 9.5 mm/s RMS.",
+      "source_fixture": "eval/fixtures/corpus/turbine_operating_manual.txt",
+      "is_supported": false,
+      "claim_type": "conflicting_numerical",
+      "contradiction_detail": "Manual specifies 4.5 mm/s steady-state and 7.0 mm/s trip limit."
+    },
+    {
+      "id": "claim_06_ceramic_fabrication",
+      "claim": "The TG-8500 turbine utilizes ceramic-matrix composite rotor blades with titanium coating.",
+      "source_fixture": "eval/fixtures/corpus/turbine_operating_manual.txt",
+      "is_supported": false,
+      "claim_type": "fabricated_unsupported",
+      "contradiction_detail": "No ceramic blades or titanium coatings exist in the industrial manual."
+    },
+    {
+      "id": "claim_07_absent_component",
+      "claim": "The natural gas combustor spark plug requires a 15 kV ignition transformer.",
+      "source_fixture": "eval/fixtures/corpus/turbine_operating_manual.txt",
+      "is_supported": false,
+      "claim_type": "absent_component",
+      "contradiction_detail": "Gas turbine igniters do not exist in a steam turbine corpus."
+    }
+  ],
+  "tool_ground_truth": [
+    {
+      "id": "tool_math_01_efficiency",
+      "expression": "1250 / 4200 * 100",
+      "expected_value": 29.761905,
+      "tolerance": 0.0001
+    },
+    {
+      "id": "tool_math_02_torque_conversion",
+      "expression": "450 * 0.737562",
+      "expected_value": 331.9029,
+      "tolerance": 0.001
+    },
+    {
+      "id": "tool_math_03_flow_ratio",
+      "expression": "350 / 80",
+      "expected_value": 4.375,
+      "tolerance": 0.0001
+    }
+  ]
+}

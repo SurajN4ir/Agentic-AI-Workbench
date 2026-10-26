@@ -1,0 +1,77 @@
+{
+  "date": "2026-10-26",
+  "server": {
+    "version": "29.7.2",
+    "os": "linux",
+    "architecture": "amd64",
+    "image_preexisting": true
+  },
+  "checks": {
+    "allowed_execution": {
+      "passed": true,
+      "detail": "success=True; exit=0; stdout='ALLOWED_OK'; stderr=''; synthetic workspace output verified"
+    },
+    "mount_boundary": {
+      "passed": true,
+      "detail": "only /workspace bind source=D:\\AGENTIC AI MAJOR PROJECT\\eval\\post-audit-2026-10-26\\docker-sandbox-workspace\\runtime-verification-22604; no other host bind recorded"
+    },
+    "resource_limits": {
+      "passed": true,
+      "detail": "Memory=536870912; NanoCpus=2000000000; PidsLimit=50"
+    },
+    "isolation_flags": {
+      "passed": true,
+      "detail": "NetworkMode=none; CapDrop=['ALL']; SecurityOpt=['no-new-privileges:true']; User=1000:1000"
+    },
+    "cleanup": {
+      "passed": true,
+      "detail": "container 64c56f3226be6ad7e75dd9377313300b98deeae1e8022e3d5932eb3389504b49 absent after execute() returned"
+    },
+    "denied_operations": {
+      "passed": true,
+      "detail": "exit=0; output='PRIVILEGE_ESCALATION_BLOCKED PermissionError\\nNETWORK_BLOCKED OSError\\nSHADOW_READ_BLOCKED PermissionError'"
+    },
+    "host_filesystem_boundary": {
+      "passed": true,
+      "detail": "container local filesystem write succeeded; corresponding host probe absent at D:\\AGENTIC AI MAJOR PROJECT\\eval\\docker-container-host-boundary-probe.txt"
+    },
+    "timeout": {
+      "passed": true,
+      "detail": "success=False; stderr='Execution timed out after 2 seconds.'; elapsed_ms=2610.8"
+    },
+    "timeout_cleanup": {
+      "passed": true,
+      "detail": "timed-out container 34d4dbf625e0e2e43419190cf415cb6b5480743573371ebce283ef82db1599f2 absent after execute() returned"
+    },
+    "invalid_workspace_boundary": {
+      "passed": true,
+      "detail": "success=False; stderr=\"Workspace boundary error: Invalid session_id '../escape'. Must contain only alphanumeric, hyphen, or underscore characters.\""
+    },
+    "missing_image_failure": {
+      "passed": true,
+      "detail": "success=False; exit=-1; error='Container error: 500 Server Error for http+docker://localnpipe/v1.55/images/create?tag=never&fromImage=127.0.0.1%3A1%2Fsynthetic%2Fno-such-image: Internal Server Error (\"failed to resolve reference \"127.0.0.1:1/synthetic/no-such-image:never\": failed to do request: Head \"https://127.0.0.1:1/v2/synthetic/no-such-image/manifests/never\": dial tcp 127.0.0.1:1: connect: connection refused\")'"
+    },
+    "daemon_ping_failure_fail_closed": {
+      "passed": true,
+      "detail": "success=False; exit=-1; steps=['Isolation engine: Docker container (python:3.11-slim)', 'Timeout limit: 2s', 'Memory limit: 512m', 'Container network: Disabled (network_mode=none)', 'Daemon status: Unreachable', 'Action: Execution blocked (fail-closed)']"
+    }
+  },
+  "notes": [
+    "Synthetic code and a fresh eval/ workspace only; no user documents were read.",
+    "The Docker image used was present before the test; no image was pulled.",
+    "Network probe used the literal public IP 1.1.1.1 with a short timeout.",
+    "The missing-image registry address is loopback-only (127.0.0.1:1)."
+  ],
+  "summary": {
+    "passed": 12,
+    "total": 12,
+    "failed": []
+  },
+  "commands": [
+    "docker context ls",
+    "docker version",
+    "docker info --format '{{.ServerVersion}} {{.OperatingSystem}} {{.OSType}} {{.Architecture}}'",
+    "docker image ls --format '{{.Repository}}:{{.Tag}} {{.ID}}'",
+    ".venv\\Scripts\\python.exe scripts\\verify_docker_sandbox_runtime.py"
+  ]
+}

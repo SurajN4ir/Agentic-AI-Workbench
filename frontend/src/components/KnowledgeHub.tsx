@@ -36,9 +36,19 @@ import {
 
 interface KnowledgeHubProps {
   currentUser: User | null
+  initialTarget?: {
+    documentId?: string | null
+    filename?: string
+    chunkId?: string | null
+  } | null
+  onClearTarget?: () => void
 }
 
-export const KnowledgeHub: React.FC<KnowledgeHubProps> = ({ currentUser }) => {
+export const KnowledgeHub: React.FC<KnowledgeHubProps> = ({
+  currentUser,
+  initialTarget,
+  onClearTarget,
+}) => {
   const isAdmin = currentUser?.role === 'admin'
   // Navigation View
   const [activeView, setActiveView] = useState<'documents' | 'collections' | 'retrieval'>('documents')
@@ -290,7 +300,34 @@ export const KnowledgeHub: React.FC<KnowledgeHubProps> = ({ currentUser }) => {
     }
   }
 
-  // Handle Hybrid Search Execution
+  // Handle provenance navigation from Citation Inspector
+  useEffect(() => {
+    if (!initialTarget) return
+
+    // 1. If chunkId is specified, fetch chunk detail modal directly
+    if (initialTarget.chunkId) {
+      handleViewChunkDetail(initialTarget.chunkId)
+    }
+
+    // 2. Open document chunk drawer if target document is found
+    const targetDoc = documents.find(
+      (d) =>
+        (initialTarget.documentId && d.id === initialTarget.documentId) ||
+        (initialTarget.filename && d.filename.toLowerCase() === initialTarget.filename.toLowerCase())
+    )
+
+    if (targetDoc) {
+      setActiveView('documents')
+      setInspectingDoc(targetDoc)
+      setChunkSectionFilter('all')
+      setChunkSearchQuery('')
+      notifySuccess(`Navigated to provenance: ${targetDoc.filename}`)
+      onClearTarget?.()
+    } else if (documents.length > 0 && selectedCollection !== 'all') {
+      // Document might be in another collection; widen view to all collections
+      setSelectedCollection('all')
+    }
+  }, [initialTarget, documents, selectedCollection])
   const handleRunSearch = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!searchQuery.trim()) return
